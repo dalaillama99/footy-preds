@@ -171,6 +171,14 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
     return {"created": created, "updated": updated, "points_recalculated": points_recalculated, "total": len(matches)}
 
 
+async def fetch_match_result(api_id: int) -> dict:
+    """Fetch current status and score for a single match."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.get(f"{settings.FOOTBALL_API_BASE}/matches/{api_id}", headers=_headers())
+        resp.raise_for_status()
+    return _parse_match(resp.json())
+
+
 async def fetch_match_lineups(api_id: int) -> dict:
     """
     Fetch lineup data for a single match. Lineups are usually announced ~1 hour before kickoff.

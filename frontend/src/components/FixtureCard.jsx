@@ -6,8 +6,11 @@ function isPast(kickoff) {
   return new Date(kickoff + 'Z') <= new Date()
 }
 
-function fmtTime(kickoff) {
-  return new Date(kickoff + 'Z').toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+function fmtKickoff(kickoff) {
+  const d = new Date(kickoff + 'Z')
+  const date = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  return `${date}, ${time}`
 }
 
 function toLocalDatetimeInput(kickoff) {
@@ -216,7 +219,7 @@ export default function FixtureCard({
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs text-gray-400">
-            {fmtTime(fixture.kickoff)}
+            {fmtKickoff(fixture.kickoff)}
             {fixture.matchday && !fixture.stage && ` · MD ${fixture.matchday}`}
             {countdown && (
               <span className="ml-2 text-green-600 font-medium">{countdown}</span>
@@ -277,7 +280,7 @@ export default function FixtureCard({
         {predError && <p className="text-red-500 text-xs text-center mt-1">{predError}</p>}
 
         {/* Lineup button */}
-        {showLineups && !locked && fixture.api_id && (
+        {showLineups && fixture.api_id && !postponed && (
           <div className="mt-2 flex justify-center">
             <button onClick={() => setLineupOpen(true)}
               className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
@@ -382,7 +385,7 @@ export default function FixtureCard({
                         onScoreSet({ ...fixture, status: 'POSTPONED', home_score: null, away_score: null })
                       }}
                       className="text-xs text-orange-500 hover:text-orange-700 font-medium">
-                      Mark PPD
+                      Mark Postponed
                     </button>
                   </>
                 )}

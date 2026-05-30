@@ -140,12 +140,10 @@ async def get_lineups(
     if not fixture:
         raise HTTPException(status_code=404, detail="Fixture not found")
 
-    # Return cache if lineups are populated or kickoff is > 2 hours away (not announced yet)
+    # Only use cache if lineups are confirmed available — don't cache "not yet announced"
     if fixture.lineups_json:
         cached = json.loads(fixture.lineups_json)
-        kickoff_utc = fixture.kickoff if fixture.kickoff.tzinfo else fixture.kickoff.replace(tzinfo=timezone.utc)
-        hours_to_kickoff = (kickoff_utc - datetime.now(timezone.utc)).total_seconds() / 3600
-        if cached.get("available") or hours_to_kickoff > 2:
+        if cached.get("available"):
             return cached
 
     if not settings.FOOTBALL_API_KEY or not fixture.api_id:
@@ -156,8 +154,9 @@ async def get_lineups(
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Could not fetch lineups: {exc}")
 
-    fixture.lineups_json = json.dumps(lineup_data)
-    await db.commit()
+    if lineup_data.get("available"):
+        fixture.lineups_json = json.dumps(lineup_data)
+        await db.commit()
     return lineup_data
 
 
