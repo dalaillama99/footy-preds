@@ -7,7 +7,7 @@ export default function Login() {
         <p className="text-gray-500 text-sm mb-8">Sign in to make predictions and compete with your friends.</p>
 
         <a
-          href="http://localhost:8000/auth/google"
+          href={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/auth/google`}
           className="flex items-center justify-center gap-3 w-full border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-xl text-sm transition"
         >
           <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
