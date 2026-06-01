@@ -79,11 +79,17 @@ def _parse_match(m: dict, competition_override: str = "") -> dict:
     penalties = score_data.get("penalties", {})
     duration = score_data.get("duration") or "REGULAR"
 
-    # extraTime holds goals scored ONLY during ET (additive, not cumulative).
-    # AET score = fullTime + extraTime goals.
-    if duration in ("EXTRA_TIME", "PENALTY_SHOOTOUT") and full_time.get("home") is not None:
-        home_score = full_time["home"] + (extra_time.get("home") or 0)
-        away_score = full_time["away"] + (extra_time.get("away") or 0)
+    # football-data.org field meanings:
+    #   fullTime  = score at 90 min
+    #   extraTime = cumulative AET score for EXTRA_TIME matches;
+    #               for PENALTY_SHOOTOUT it holds the penalty scores (not ET goals)
+    #   penalties = penalty shootout score
+    #
+    # So for EXTRA_TIME: use extraTime as the final score.
+    # For PENALTY_SHOOTOUT: use fullTime (the AET score before pens).
+    if duration == "EXTRA_TIME" and extra_time.get("home") is not None:
+        home_score = extra_time["home"]
+        away_score = extra_time["away"]
     else:
         home_score = full_time.get("home")
         away_score = full_time.get("away")
