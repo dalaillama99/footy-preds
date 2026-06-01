@@ -117,3 +117,18 @@ class LeaderboardEntry(BaseModel):
     total_points: float
     prediction_count: int
     scored_count: int
+
+
+# ── League predictions (post-kickoff, visible to all members) ─────────────────
+
+class MemberPredictionOut(BaseModel):
+    user_id: str
+    username: str
+    home_pred: int
+    away_pred: int
+    points: Optional[float]
+
+
+class FixturePredictionsOut(BaseModel):
+    fixture: FixtureOut
+    predictions: list[MemberPredictionOut]

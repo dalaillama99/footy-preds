@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
@@ -7,8 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import League, LeagueMember, Prediction, User
-from app.schemas import LeagueCreate, LeagueJoin, LeagueOut, LeaderboardEntry, LeagueMemberOut
+from app.models import Fixture, League, LeagueMember, Prediction, User
+from app.schemas import (
+    FixturePredictionsOut, LeagueCreate, LeagueJoin, LeagueOut,
+    LeaderboardEntry, LeagueMemberOut, MemberPredictionOut,
+)
 
 router = APIRouter(prefix="/leagues", tags=["leagues"])
 
@@ -175,6 +179,66 @@ async def leave_league(
     await db.delete(member)
     await db.commit()
     return {"left": league_id}
+
+
+@router.get("/{league_id}/fixture-predictions", response_model=list[FixturePredictionsOut])
+async def league_fixture_predictions(
+    league_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """All members' predictions for kicked-off fixtures. Only visible after kickoff."""
+    membership = await db.execute(
+        select(LeagueMember).where(LeagueMember.user_id == user.id, LeagueMember.league_id == league_id)
+    )
+    if not membership.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Not a member of this league")
+
+    members_result = await db.execute(
+        select(LeagueMember).where(LeagueMember.league_id == league_id).options(selectinload(LeagueMember.user))
+    )
+    members = members_result.scalars().all()
+    member_ids = {m.user_id for m in members}
+    user_map = {m.user_id: m.user.username for m in members}
+
+    now = datetime.utcnow()
+    fixtures_result = await db.execute(
+        select(Fixture).where(Fixture.kickoff <= now).order_by(Fixture.kickoff.desc())
+    )
+    fixtures = fixtures_result.scalars().all()
+    if not fixtures:
+        return []
+
+    fixture_ids = [f.id for f in fixtures]
+    preds_result = await db.execute(
+        select(Prediction).where(
+            Prediction.fixture_id.in_(fixture_ids),
+            Prediction.user_id.in_(member_ids),
+        )
+    )
+    preds_by_fixture: dict[str, list[Prediction]] = {}
+    for p in preds_result.scalars():
+        preds_by_fixture.setdefault(p.fixture_id, []).append(p)
+
+    result = []
+    for fixture in fixtures:
+        fixture_preds = preds_by_fixture.get(fixture.id, [])
+        if not fixture_preds:
+            continue
+        result.append(FixturePredictionsOut(
+            fixture=fixture,
+            predictions=[
+                MemberPredictionOut(
+                    user_id=p.user_id,
+                    username=user_map.get(p.user_id, "Unknown"),
+                    home_pred=p.home_pred,
+                    away_pred=p.away_pred,
+                    points=p.points,
+                )
+                for p in sorted(fixture_preds, key=lambda p: -(p.points or 0))
+            ],
+        ))
+    return result
 
 
 @router.delete("/{league_id}/members/{target_user_id}")

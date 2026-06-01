@@ -4,10 +4,144 @@ import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import Leaderboard from '../components/Leaderboard'
 
+function fmtKickoff(kickoff) {
+  const d = new Date(kickoff + 'Z')
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) +
+    ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+}
+
+function PointsBadge({ pts }) {
+  if (pts == null) return <span className="text-gray-300 text-xs">—</span>
+  const cls =
+    pts === 3   ? 'bg-green-100 text-green-800' :
+    pts >= 1.5  ? 'bg-blue-100 text-blue-800' :
+    pts >= 1    ? 'bg-sky-100 text-sky-700' :
+    pts > 0     ? 'bg-gray-100 text-gray-500' :
+                  'bg-red-50 text-red-400'
+  const label = pts === 3 ? '⭐ 3' : (pts % 1 === 0 ? pts.toFixed(0) : pts.toFixed(2))
+  return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cls}`}>{label}</span>
+}
+
+function PredictionsTab({ leagueId }) {
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.get(`/leagues/${leagueId}/fixture-predictions`)
+      .then(r => setData(r.data))
+      .finally(() => setLoading(false))
+  }, [leagueId])
+
+  if (loading) return <p className="text-gray-400 text-sm">Loading…</p>
+  if (!data.length) return <p className="text-gray-400 text-sm">No predictions to show yet — check back after matches kick off.</p>
+
+  return (
+    <div className="space-y-6">
+      {data.map(({ fixture, predictions }) => (
+        <div key={fixture.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+          {/* Fixture header */}
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/60">
+            <p className="text-xs text-gray-400 mb-0.5">{fmtKickoff(fixture.kickoff)} · {fixture.competition}</p>
+            <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+              <span>{fixture.home_team}</span>
+              {fixture.home_score != null && fixture.away_score != null ? (
+                <span className="font-bold text-base px-2">{fixture.home_score}–{fixture.away_score}</span>
+              ) : (
+                <span className="text-gray-300 px-2">vs</span>
+              )}
+              <span>{fixture.away_team}</span>
+            </div>
+          </div>
+
+          {/* Predictions table */}
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs text-gray-400 border-b border-gray-100">
+                <th className="text-left px-4 py-2 font-medium">Member</th>
+                <th className="text-center px-4 py-2 font-medium">Prediction</th>
+                <th className="text-right px-4 py-2 font-medium">Points</th>
+              </tr>
+            </thead>
+            <tbody>
+              {predictions.map((p, i) => (
+                <tr key={p.user_id} className={i < predictions.length - 1 ? 'border-b border-gray-50' : ''}>
+                  <td className="px-4 py-2.5 text-gray-800 font-medium">{p.username}</td>
+                  <td className="px-4 py-2.5 text-center text-gray-600 font-mono">
+                    {p.home_pred}–{p.away_pred}
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    <PointsBadge pts={p.points} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function HowItWorksTab() {
+  return (
+    <div className="space-y-5 max-w-lg">
+      <p className="text-sm text-gray-500">Points are awarded per match based on how close your prediction is to the actual score.</p>
+
+      <div className="space-y-3">
+        <div className="flex items-start gap-4 bg-green-50 border border-green-200 rounded-2xl px-5 py-4">
+          <span className="text-2xl">⭐</span>
+          <div>
+            <p className="font-semibold text-gray-900">3 points — Exact score</p>
+            <p className="text-sm text-gray-500 mt-0.5">You predicted the exact scoreline.</p>
+            <p className="text-xs text-gray-400 mt-1 font-mono">e.g. predicted 2–1, actual 2–1</p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-4 bg-white border border-gray-200 rounded-2xl px-5 py-4">
+          <span className="text-2xl">✅</span>
+          <div>
+            <p className="font-semibold text-gray-900">1 point — Correct result</p>
+            <p className="text-sm text-gray-500 mt-0.5">You got the result right (home win / draw / away win).</p>
+            <p className="text-xs text-gray-400 mt-1 font-mono">e.g. predicted 2–0, actual 1–0 → 1 pt</p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-4 bg-white border border-gray-200 rounded-2xl px-5 py-4">
+          <span className="text-2xl">+½</span>
+          <div>
+            <p className="font-semibold text-gray-900">+0.5 — Correct goal difference</p>
+            <p className="text-sm text-gray-500 mt-0.5">On top of a correct result, you also got the goal difference right.</p>
+            <p className="text-xs text-gray-400 mt-1 font-mono">e.g. predicted 3–1, actual 2–0 → both win by 2 → +0.5</p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-4 bg-white border border-gray-200 rounded-2xl px-5 py-4">
+          <span className="text-2xl">+¼</span>
+          <div>
+            <p className="font-semibold text-gray-900">+0.25 — Correct total goals</p>
+            <p className="text-sm text-gray-500 mt-0.5">The total number of goals in your prediction matches the actual total (regardless of result).</p>
+            <p className="text-xs text-gray-400 mt-1 font-mono">e.g. predicted 2–1 (3 goals), actual 1–2 (3 goals) → +0.25</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-sm text-gray-600">
+        <p className="font-semibold text-gray-800 mb-2">Maximum without exact score: 1.75 pts</p>
+        <p className="text-xs text-gray-500">Correct result (1) + correct goal diff (+0.5) + correct total goals (+0.25) = 1.75</p>
+      </div>
+
+      <p className="text-xs text-gray-400">Prediction deadline is kickoff time — you cannot predict or change your prediction once a match has started.</p>
+    </div>
+  )
+}
+
+const TABS = ['Standings', 'Predictions', 'Members', 'How it works']
+
 export default function LeagueDetail() {
   const { id } = useParams()
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [tab, setTab] = useState('Standings')
 
   const [league, setLeague] = useState(null)
   const [board, setBoard] = useState([])
@@ -93,72 +227,87 @@ export default function LeagueDetail() {
         </div>
       </div>
 
-      {/* Leaderboard */}
-      <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Standings</h2>
-      <div className="mb-8">
-        <Leaderboard entries={board} />
-      </div>
-
-      {/* Members list */}
-      <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Members</h2>
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden mb-8">
-        {members.map((m, i) => (
-          <div
-            key={m.user_id}
-            className={`flex items-center justify-between px-5 py-3.5 ${i < members.length - 1 ? 'border-b border-gray-50' : ''} ${m.user_id === user?.id ? 'bg-green-50' : ''}`}
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 border-b border-gray-200">
+        {TABS.map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2 text-sm font-medium transition border-b-2 -mb-px ${
+              tab === t
+                ? 'border-green-600 text-green-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
           >
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-gray-900 text-sm">{m.username}</span>
-              {m.user_id === user?.id && <span className="text-xs text-green-600">(you)</span>}
-              {m.is_league_admin && <span className="text-xs text-amber-600 font-medium">Admin</span>}
-            </div>
-            {isLeagueAdmin && m.user_id !== user?.id && (
-              <button
-                onClick={() => kickMember(m.user_id)}
-                disabled={kickingId === m.user_id}
-                className="text-xs text-red-400 hover:text-red-600 transition"
-              >
-                {kickingId === m.user_id ? '…' : 'Kick'}
-              </button>
-            )}
-          </div>
+            {t}
+          </button>
         ))}
       </div>
 
-      {/* Leave league */}
-      {!isLeagueAdmin && (
-        <div className="border-t border-gray-100 pt-6">
-          {leaveError && <p className="text-red-500 text-xs mb-2">{leaveError}</p>}
-          {leaveConfirm ? (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-red-600 font-medium">Leave this league?</span>
-              <button
-                onClick={leaveLeague}
-                disabled={leaving}
-                className="bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition"
+      {/* Tab content */}
+      {tab === 'Standings' && (
+        <Leaderboard entries={board} />
+      )}
+
+      {tab === 'Predictions' && (
+        <PredictionsTab leagueId={id} />
+      )}
+
+      {tab === 'Members' && (
+        <div>
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden mb-8">
+            {members.map((m, i) => (
+              <div
+                key={m.user_id}
+                className={`flex items-center justify-between px-5 py-3.5 ${i < members.length - 1 ? 'border-b border-gray-50' : ''} ${m.user_id === user?.id ? 'bg-green-50' : ''}`}
               >
-                {leaving ? '…' : 'Yes, leave'}
-              </button>
-              <button onClick={() => setLeaveConfirm(false)} className="text-sm text-gray-400 hover:text-gray-600">
-                Cancel
-              </button>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-900 text-sm">{m.username}</span>
+                  {m.user_id === user?.id && <span className="text-xs text-green-600">(you)</span>}
+                  {m.is_league_admin && <span className="text-xs text-amber-600 font-medium">Admin</span>}
+                </div>
+                {isLeagueAdmin && m.user_id !== user?.id && (
+                  <button
+                    onClick={() => kickMember(m.user_id)}
+                    disabled={kickingId === m.user_id}
+                    className="text-xs text-red-400 hover:text-red-600 transition"
+                  >
+                    {kickingId === m.user_id ? '…' : 'Kick'}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {!isLeagueAdmin && (
+            <div className="border-t border-gray-100 pt-6">
+              {leaveError && <p className="text-red-500 text-xs mb-2">{leaveError}</p>}
+              {leaveConfirm ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-red-600 font-medium">Leave this league?</span>
+                  <button onClick={leaveLeague} disabled={leaving}
+                    className="bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition">
+                    {leaving ? '…' : 'Yes, leave'}
+                  </button>
+                  <button onClick={() => setLeaveConfirm(false)} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+                </div>
+              ) : (
+                <button onClick={() => setLeaveConfirm(true)} className="text-sm text-red-400 hover:text-red-600 transition">
+                  Leave league
+                </button>
+              )}
             </div>
-          ) : (
-            <button
-              onClick={() => setLeaveConfirm(true)}
-              className="text-sm text-red-400 hover:text-red-600 transition"
-            >
-              Leave league
-            </button>
+          )}
+
+          {isLeagueAdmin && (
+            <p className="text-xs text-gray-400 mt-4 border-t border-gray-100 pt-4">
+              You are the league admin — you cannot leave this league.
+            </p>
           )}
         </div>
       )}
 
-      {isLeagueAdmin && (
-        <p className="text-xs text-gray-400 mt-4 border-t border-gray-100 pt-4">
-          You are the league admin — you cannot leave this league.
-        </p>
-      )}
+      {tab === 'How it works' && <HowItWorksTab />}
     </div>
   )
 }
