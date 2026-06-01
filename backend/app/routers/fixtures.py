@@ -94,7 +94,14 @@ async def set_score(
     preds = await db.execute(select(Prediction).where(Prediction.fixture_id == fixture_id))
     for pred in preds.scalars():
         if data.status == "FINISHED" and data.home_score is not None and data.away_score is not None:
-            pred.points = calculate_points(pred.home_pred, pred.away_pred, data.home_score, data.away_score)
+            pred.points = calculate_points(
+                    pred.home_pred, pred.away_pred,
+                    data.home_score, data.away_score,
+                    duration=fixture.duration,
+                    home_penalties=fixture.home_penalties,
+                    away_penalties=fixture.away_penalties,
+                    pred_pen_winner=pred.pen_winner,
+                )
         else:
             pred.points = None
 

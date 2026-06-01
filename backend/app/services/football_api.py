@@ -79,10 +79,11 @@ def _parse_match(m: dict, competition_override: str = "") -> dict:
     penalties = score_data.get("penalties", {})
     duration = score_data.get("duration") or "REGULAR"
 
-    # For ET/penalties, use the ET score as the meaningful result (ignores shootout)
-    if duration in ("EXTRA_TIME", "PENALTY_SHOOTOUT") and extra_time.get("home") is not None:
-        home_score = extra_time["home"]
-        away_score = extra_time["away"]
+    # extraTime holds goals scored ONLY during ET (additive, not cumulative).
+    # AET score = fullTime + extraTime goals.
+    if duration in ("EXTRA_TIME", "PENALTY_SHOOTOUT") and full_time.get("home") is not None:
+        home_score = full_time["home"] + (extra_time.get("home") or 0)
+        away_score = full_time["away"] + (extra_time.get("away") or 0)
     else:
         home_score = full_time.get("home")
         away_score = full_time.get("away")
@@ -233,5 +234,12 @@ async def _recalc_points(db: AsyncSession, fixture: Fixture) -> int:
     result = await db.execute(select(Prediction).where(Prediction.fixture_id == fixture.id))
     preds = result.scalars().all()
     for pred in preds:
-        pred.points = calculate_points(pred.home_pred, pred.away_pred, fixture.home_score, fixture.away_score)
+        pred.points = calculate_points(
+            pred.home_pred, pred.away_pred,
+            fixture.home_score, fixture.away_score,
+            duration=fixture.duration,
+            home_penalties=fixture.home_penalties,
+            away_penalties=fixture.away_penalties,
+            pred_pen_winner=pred.pen_winner,
+        )
     return len(preds)

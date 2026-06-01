@@ -99,6 +99,7 @@ class PredictionCreate(BaseModel):
     fixture_id: str
     home_pred: int
     away_pred: int
+    pen_winner: Optional[str] = None  # "home" or "away", only relevant for knockout fixtures
 
 
 class PredictionOut(BaseModel):
@@ -107,6 +108,7 @@ class PredictionOut(BaseModel):
     fixture_id: str
     home_pred: int
     away_pred: int
+    pen_winner: Optional[str]
     points: Optional[float]
     submitted_at: datetime
     fixture: FixtureOut
@@ -129,6 +131,7 @@ class MemberPredictionOut(BaseModel):
     username: str
     home_pred: int
     away_pred: int
+    pen_winner: Optional[str]
     points: Optional[float]
 
 

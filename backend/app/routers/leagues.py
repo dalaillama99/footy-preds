@@ -233,6 +233,7 @@ async def league_fixture_predictions(
                     username=user_map.get(p.user_id, "Unknown"),
                     home_pred=p.home_pred,
                     away_pred=p.away_pred,
+                    pen_winner=p.pen_winner,
                     points=p.points,
                 )
                 for p in sorted(fixture_preds, key=lambda p: -(p.points or 0))

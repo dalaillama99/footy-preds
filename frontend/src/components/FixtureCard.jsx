@@ -92,6 +92,7 @@ function LiveBadge() {
 }
 
 const SCORE_STATUSES = ['FINISHED', 'LIVE', 'SCHEDULED', 'POSTPONED']
+const KNOCKOUT_STAGES = new Set(['LAST_32', 'LAST_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'THIRD_PLACE', 'FINAL'])
 
 export default function FixtureCard({
   fixture, prediction, isAdmin, showLineups,
@@ -104,9 +105,12 @@ export default function FixtureCard({
 
   const countdown = useCountdown(fixture.kickoff, locked)
 
+  const isKnockout = fixture.stage && KNOCKOUT_STAGES.has(fixture.stage)
+
   // Prediction form
   const [homePred, setHomePred] = useState(prediction?.home_pred ?? '')
   const [awayPred, setAwayPred] = useState(prediction?.away_pred ?? '')
+  const [penWinner, setPenWinner] = useState(prediction?.pen_winner ?? '')
   const [saving, setSaving] = useState(false)
   const [predError, setPredError] = useState('')
 
@@ -147,6 +151,7 @@ export default function FixtureCard({
         fixture_id: fixture.id,
         home_pred: parseInt(homePred),
         away_pred: parseInt(awayPred),
+        pen_winner: isKnockout && penWinner ? penWinner : null,
       })
       onPredictionSaved(data)
     } catch (err) {
@@ -269,23 +274,39 @@ export default function FixtureCard({
         {locked && prediction && (
           <div className="text-center text-xs text-gray-400 mb-2">
             Your prediction: <span className="font-medium text-gray-700">{prediction.home_pred} – {prediction.away_pred}</span>
+            {prediction.pen_winner && (
+              <span className="ml-1">· {prediction.pen_winner === 'home' ? fixture.home_team : fixture.away_team} on pens</span>
+            )}
           </div>
         )}
 
         {/* Prediction form */}
         {!locked && (
-          <form onSubmit={savePrediction} className="flex items-center gap-2 justify-center">
-            <input type="number" min="0" max="20" value={homePred}
-              onChange={e => setHomePred(e.target.value)} required placeholder="0"
-              className="w-14 text-center border border-gray-300 rounded-lg py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-            <span className="text-gray-400 text-sm">–</span>
-            <input type="number" min="0" max="20" value={awayPred}
-              onChange={e => setAwayPred(e.target.value)} required placeholder="0"
-              className="w-14 text-center border border-gray-300 rounded-lg py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-            <button type="submit" disabled={saving}
-              className="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50">
-              {saving ? '…' : prediction ? 'Update' : 'Predict'}
-            </button>
+          <form onSubmit={savePrediction} className="space-y-2">
+            <div className="flex items-center gap-2 justify-center">
+              <input type="number" min="0" max="20" value={homePred}
+                onChange={e => setHomePred(e.target.value)} required placeholder="0"
+                className="w-14 text-center border border-gray-300 rounded-lg py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              <span className="text-gray-400 text-sm">–</span>
+              <input type="number" min="0" max="20" value={awayPred}
+                onChange={e => setAwayPred(e.target.value)} required placeholder="0"
+                className="w-14 text-center border border-gray-300 rounded-lg py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              <button type="submit" disabled={saving}
+                className="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50">
+                {saving ? '…' : prediction ? 'Update' : 'Predict'}
+              </button>
+            </div>
+            {isKnockout && (
+              <div className="flex items-center gap-2 justify-center text-xs text-gray-500">
+                <span>If pens:</span>
+                <select value={penWinner} onChange={e => setPenWinner(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-2 py-1 text-xs bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500">
+                  <option value="">— don't predict —</option>
+                  <option value="home">{fixture.home_team}</option>
+                  <option value="away">{fixture.away_team}</option>
+                </select>
+              </div>
+            )}
           </form>
         )}
         {predError && <p className="text-red-500 text-xs text-center mt-1">{predError}</p>}

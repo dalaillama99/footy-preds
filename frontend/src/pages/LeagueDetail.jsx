@@ -76,6 +76,11 @@ function PredictionsTab({ leagueId }) {
                   <td className="px-4 py-2.5 text-gray-800 font-medium">{p.username}</td>
                   <td className="px-4 py-2.5 text-center text-gray-600 font-mono">
                     {p.home_pred}–{p.away_pred}
+                    {p.pen_winner && (
+                      <span className="ml-1 text-xs text-gray-400 font-sans">
+                        ({p.pen_winner === 'home' ? fixture.home_team.split(' ')[0] : fixture.away_team.split(' ')[0]} pens)
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <PointsBadge pts={p.points} />

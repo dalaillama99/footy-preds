@@ -41,6 +41,7 @@ async def submit_prediction(
     if pred:
         pred.home_pred = data.home_pred
         pred.away_pred = data.away_pred
+        pred.pen_winner = data.pen_winner
         pred.submitted_at = datetime.utcnow()
     else:
         pred = Prediction(
@@ -49,6 +50,7 @@ async def submit_prediction(
             fixture_id=data.fixture_id,
             home_pred=data.home_pred,
             away_pred=data.away_pred,
+            pen_winner=data.pen_winner,
         )
         db.add(pred)
 

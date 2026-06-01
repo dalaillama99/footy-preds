@@ -91,6 +91,7 @@ class Prediction(Base):
     fixture_id: Mapped[str] = mapped_column(String, ForeignKey("fixtures.id"))
     home_pred: Mapped[int] = mapped_column(Integer)
     away_pred: Mapped[int] = mapped_column(Integer)
+    pen_winner: Mapped[str | None] = mapped_column(String(10), nullable=True)  # "home" or "away"
     points: Mapped[float | None] = mapped_column(Float, nullable=True)
     submitted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
