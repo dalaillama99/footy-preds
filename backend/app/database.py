@@ -22,6 +22,9 @@ async def init_db():
         # Additive migrations — safe to re-run; silently skips if column already exists
         for stmt in [
             "ALTER TABLE fixtures ADD COLUMN lineups_json TEXT",
+            "ALTER TABLE fixtures ADD COLUMN duration TEXT",
+            "ALTER TABLE fixtures ADD COLUMN home_penalties INTEGER",
+            "ALTER TABLE fixtures ADD COLUMN away_penalties INTEGER",
         ]:
             try:
                 await conn.execute(text(stmt))

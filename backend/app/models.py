@@ -73,6 +73,9 @@ class Fixture(Base):
     status: Mapped[str] = mapped_column(String(20), default="SCHEDULED")   # SCHEDULED|LIVE|FINISHED|POSTPONED
     home_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     away_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duration: Mapped[str | None] = mapped_column(String(20), nullable=True)  # REGULAR|EXTRA_TIME|PENALTY_SHOOTOUT
+    home_penalties: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    away_penalties: Mapped[int | None] = mapped_column(Integer, nullable=True)
     lineups_json: Mapped[str | None] = mapped_column(String, nullable=True)  # cached JSON from API
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

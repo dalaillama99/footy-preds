@@ -88,6 +88,9 @@ class FixtureOut(BaseModel):
     status: str
     home_score: Optional[int]
     away_score: Optional[int]
+    duration: Optional[str]
+    home_penalties: Optional[int]
+    away_penalties: Optional[int]
 
 
 # ── Predictions ───────────────────────────────────────────────────────────────

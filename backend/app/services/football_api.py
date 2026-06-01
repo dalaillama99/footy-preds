@@ -73,7 +73,20 @@ def _to_utc_naive(dt: datetime) -> datetime:
 
 
 def _parse_match(m: dict, competition_override: str = "") -> dict:
-    score = m.get("score", {}).get("fullTime", {})
+    score_data = m.get("score", {})
+    full_time = score_data.get("fullTime", {})
+    extra_time = score_data.get("extraTime", {})
+    penalties = score_data.get("penalties", {})
+    duration = score_data.get("duration") or "REGULAR"
+
+    # For ET/penalties, use the ET score as the meaningful result (ignores shootout)
+    if duration in ("EXTRA_TIME", "PENALTY_SHOOTOUT") and extra_time.get("home") is not None:
+        home_score = extra_time["home"]
+        away_score = extra_time["away"]
+    else:
+        home_score = full_time.get("home")
+        away_score = full_time.get("away")
+
     competition_name = competition_override or m.get("competition", {}).get("name", "")
     kickoff = _to_utc_naive(datetime.fromisoformat(m["utcDate"].replace("Z", "+00:00")))
     return {
@@ -88,8 +101,11 @@ def _parse_match(m: dict, competition_override: str = "") -> dict:
         "stage": m.get("stage"),
         "group": m.get("group"),
         "status": _STATUS_MAP.get(m["status"], "SCHEDULED"),
-        "home_score": score.get("home"),
-        "away_score": score.get("away"),
+        "home_score": home_score,
+        "away_score": away_score,
+        "duration": duration,
+        "home_penalties": penalties.get("home"),
+        "away_penalties": penalties.get("away"),
     }
 
 
@@ -139,6 +155,9 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
             fixture.away_score = m["away_score"]
             fixture.home_team_crest = m["home_team_crest"]
             fixture.away_team_crest = m["away_team_crest"]
+            fixture.duration = m.get("duration")
+            fixture.home_penalties = m.get("home_penalties")
+            fixture.away_penalties = m.get("away_penalties")
 
             just_finished = (prev_status != "FINISHED") and (m["status"] == "FINISHED")
             if just_finished and m["home_score"] is not None:
@@ -159,6 +178,9 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
                 status=m["status"],
                 home_score=m["home_score"],
                 away_score=m["away_score"],
+                duration=m.get("duration"),
+                home_penalties=m.get("home_penalties"),
+                away_penalties=m.get("away_penalties"),
             )
             db.add(fixture)
             await db.flush()  # populate fixture.id before querying predictions

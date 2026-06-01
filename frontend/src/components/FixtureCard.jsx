@@ -227,7 +227,11 @@ export default function FixtureCard({
           </span>
           <div className="flex items-center gap-2">
             {live && <LiveBadge />}
-            {finished && <span className="text-xs text-gray-400 font-medium">FT</span>}
+            {finished && (
+              <span className="text-xs text-gray-400 font-medium">
+                {fixture.duration === 'PENALTY_SHOOTOUT' || fixture.duration === 'EXTRA_TIME' ? 'AET' : 'FT'}
+              </span>
+            )}
             {postponed && <span className="text-xs text-orange-500 font-medium">PPD</span>}
             {prediction && <PointsBadge pts={prediction.points} breakdown={breakdown} />}
           </div>
@@ -241,9 +245,16 @@ export default function FixtureCard({
           </div>
           <div className="text-center min-w-[64px]">
             {(live || finished) ? (
-              <span className={`text-xl font-bold ${live ? 'text-red-700' : 'text-gray-900'}`}>
-                {fixture.home_score ?? '–'} – {fixture.away_score ?? '–'}
-              </span>
+              <>
+                <span className={`text-xl font-bold ${live ? 'text-red-700' : 'text-gray-900'}`}>
+                  {fixture.home_score ?? '–'} – {fixture.away_score ?? '–'}
+                </span>
+                {finished && fixture.duration === 'PENALTY_SHOOTOUT' && fixture.home_penalties != null && (
+                  <p className="text-xs text-gray-500 font-medium mt-0.5">
+                    {fixture.home_penalties}–{fixture.away_penalties} pens
+                  </p>
+                )}
+              </>
             ) : (
               <span className="text-sm text-gray-300 font-medium">vs</span>
             )}

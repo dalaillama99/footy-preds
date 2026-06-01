@@ -45,7 +45,15 @@ function PredictionsTab({ leagueId }) {
             <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
               <span>{fixture.home_team}</span>
               {fixture.home_score != null && fixture.away_score != null ? (
-                <span className="font-bold text-base px-2">{fixture.home_score}–{fixture.away_score}</span>
+                <div className="text-center px-2">
+                  <span className="font-bold text-base">{fixture.home_score}–{fixture.away_score}</span>
+                  {(fixture.duration === 'EXTRA_TIME' || fixture.duration === 'PENALTY_SHOOTOUT') && (
+                    <span className="ml-1 text-xs text-gray-400 font-normal">AET</span>
+                  )}
+                  {fixture.duration === 'PENALTY_SHOOTOUT' && fixture.home_penalties != null && (
+                    <p className="text-xs text-gray-500 font-normal">({fixture.home_penalties}–{fixture.away_penalties} pens)</p>
+                  )}
+                </div>
               ) : (
                 <span className="text-gray-300 px-2">vs</span>
               )}

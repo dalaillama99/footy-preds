@@ -13,11 +13,11 @@ from app.routers import auth, fixtures, leagues, leaderboard, predictions
 
 logger = logging.getLogger(__name__)
 
-_KNOCKOUT_STAGES = {"LAST_16", "QUARTER_FINALS", "SEMI_FINALS", "THIRD_PLACE", "FINAL"}
+from datetime import timedelta
 
-
-def _expected_finish_hours(stage: str | None) -> float:
-    return 3.5 if stage in _KNOCKOUT_STAGES else 2.5
+_RESULT_INITIAL_DELAY_HOURS = 2.0   # first check 2h after kickoff
+_RESULT_RETRY_INTERVAL = timedelta(minutes=15)
+_last_result_check: dict[str, datetime] = {}  # fixture_id → last check time
 
 app = FastAPI(title="Footy Preds API")
 
@@ -42,8 +42,11 @@ async def _has_active_matches() -> bool:
         return result.scalar_one_or_none() is not None
 
 
-async def _get_overdue_unfinished() -> list:
-    """Fixtures that should be done by now (past expected finish time) but aren't FINISHED/POSTPONED."""
+async def _get_fixtures_due_result_check() -> list:
+    """
+    Fixtures ≥2h past kickoff, not yet FINISHED/POSTPONED, and due for a result check.
+    First check happens 2h after kickoff; retries every 15 min until result confirmed.
+    """
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(Fixture).where(
@@ -53,19 +56,23 @@ async def _get_overdue_unfinished() -> list:
         )
         fixtures = result.scalars().all()
         now = datetime.utcnow()
-        return [
-            f for f in fixtures
-            if (now - f.kickoff).total_seconds() / 3600 > _expected_finish_hours(f.stage)
-        ]
+        due = []
+        for f in fixtures:
+            if (now - f.kickoff).total_seconds() / 3600 < _RESULT_INITIAL_DELAY_HOURS:
+                continue
+            last = _last_result_check.get(f.id)
+            if last is None or (now - last) >= _RESULT_RETRY_INTERVAL:
+                due.append(f)
+        return due
 
 
 async def _live_score_poller():
     """
-    Poll football-data.org for live scores every 60 seconds.
+    Poll football-data.org for scores every 60 seconds.
     Strategy:
     - 1 call/min via GET /matches?status=LIVE covers all in-progress matches
-    - Additional individual calls for fixtures past their expected finish time
-      (2.5h for group/league games, 3.5h for knockout — allows for ET + penalties)
+    - For fixtures ≥2h past kickoff: check individually every 15 min until FINISHED
+      (handles ET, penalties, or delayed result reporting)
     - Total well within the 10 req/min free-tier limit
     """
     from app.services.football_api import fetch_live_matches, fetch_match_result, upsert_fixtures
@@ -83,19 +90,20 @@ async def _live_score_poller():
                             logger.info("Live poll: %d matches, %d predictions scored",
                                         result["total"], result["points_recalculated"])
 
-            # Check fixtures that should be finished by now but aren't marked so
-            overdue = await _get_overdue_unfinished()
-            for fixture in overdue:
+            # Check fixtures ≥2h past kickoff for final result (retry every 15 min)
+            due = await _get_fixtures_due_result_check()
+            for fixture in due:
                 try:
                     match_data = await fetch_match_result(fixture.api_id)
+                    _last_result_check[fixture.id] = datetime.utcnow()
                     async with AsyncSessionLocal() as db:
                         await upsert_fixtures(db, [match_data])
                     await asyncio.sleep(6)  # stay within 10 req/min
                 except Exception as exc:
-                    logger.warning("Failed to fetch overdue fixture %s: %s", fixture.api_id, exc)
+                    logger.warning("Failed to check result for fixture %s: %s", fixture.api_id, exc)
 
         except Exception as exc:
-            logger.warning("Live score poll failed: %s", exc)
+            logger.warning("Score poll failed: %s", exc)
 
 
 @app.on_event("startup")
