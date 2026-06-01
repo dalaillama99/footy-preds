@@ -151,6 +151,8 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
 
         if fixture:
             prev_status = fixture.status
+            prev_home = fixture.home_score
+            prev_away = fixture.away_score
             fixture.status = m["status"]
             fixture.home_score = m["home_score"]
             fixture.away_score = m["away_score"]
@@ -161,7 +163,8 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
             fixture.away_penalties = m.get("away_penalties")
 
             just_finished = (prev_status != "FINISHED") and (m["status"] == "FINISHED")
-            if just_finished and m["home_score"] is not None:
+            score_changed = (prev_home != m["home_score"] or prev_away != m["away_score"])
+            if m["status"] == "FINISHED" and m["home_score"] is not None and (just_finished or score_changed):
                 points_recalculated += await _recalc_points(db, fixture)
             updated += 1
         else:
