@@ -12,7 +12,7 @@ from app.schemas import FixtureCreate, FixtureOut, FixtureScoreUpdate
 import json
 from datetime import timezone
 
-from app.services.football_api import COMPETITIONS, fetch_competition_matches, fetch_match_lineups, upsert_fixtures
+from app.services.football_api import COMPETITIONS, fetch_competition_matches, fetch_match_lineups, fetch_match_result, upsert_fixtures
 from app.services.points import calculate_points
 
 router = APIRouter(prefix="/fixtures", tags=["fixtures"])
@@ -130,6 +130,34 @@ async def sync_from_api(
         raise HTTPException(status_code=502, detail=f"football-data.org error: {exc}")
 
     return await upsert_fixtures(db, matches)
+
+
+@router.post("/{fixture_id}/refresh", response_model=FixtureOut)
+async def refresh_fixture_from_api(
+    fixture_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch latest score/status for a single fixture from football-data.org and update DB."""
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    result = await db.execute(select(Fixture).where(Fixture.id == fixture_id))
+    fixture = result.scalar_one_or_none()
+    if not fixture:
+        raise HTTPException(status_code=404, detail="Fixture not found")
+    if not fixture.api_id:
+        raise HTTPException(status_code=400, detail="Fixture has no API id — cannot refresh")
+
+    try:
+        match_data = await fetch_match_result(fixture.api_id)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"football-data.org error: {exc}")
+
+    await upsert_fixtures(db, [match_data])
+
+    result = await db.execute(select(Fixture).where(Fixture.id == fixture_id))
+    return result.scalar_one()
 
 
 @router.get("/{fixture_id}/lineups")

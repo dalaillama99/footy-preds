@@ -137,6 +137,18 @@ export default function FixtureCard({
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  // Refresh from API
+  const [refreshing, setRefreshing] = useState(false)
+  const refreshFromApi = async () => {
+    setRefreshing(true)
+    try {
+      const { data } = await api.post(`/fixtures/${fixture.id}/refresh`)
+      onScoreSet(data)
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   // Lineup modal
   const [lineupOpen, setLineupOpen] = useState(false)
 
@@ -399,6 +411,15 @@ export default function FixtureCard({
             /* Admin action row */
             ) : (
               <div className="flex items-center gap-3 flex-wrap justify-center">
+                {fixture.api_id && (
+                  <>
+                    <button onClick={refreshFromApi} disabled={refreshing}
+                      className="text-xs text-blue-500 hover:text-blue-700 font-medium disabled:opacity-50">
+                      {refreshing ? '…' : '↻ Refresh from API'}
+                    </button>
+                    <span className="text-gray-200">|</span>
+                  </>
+                )}
                 <button onClick={() => { setScoreMode(true); setScoreStatus(finished ? 'FINISHED' : 'FINISHED') }}
                   className="text-xs text-amber-600 hover:text-amber-800 font-medium">
                   {finished ? 'Edit score' : 'Set score'}
