@@ -342,14 +342,20 @@ export default function FixtureCard({
         {predError && <p className="text-red-500 text-xs text-center mt-1">{predError}</p>}
 
         {/* Lineup button */}
-        {showLineups && fixture.api_id && !postponed && (
-          <div className="mt-2 flex justify-center">
-            <button onClick={() => setLineupOpen(true)}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium flex items-center gap-1">
-              📋 View lineups
-            </button>
-          </div>
-        )}
+        {showLineups && !postponed && (() => {
+          const lineupsWindowOpen = (new Date(fixture.kickoff + 'Z').getTime() - Date.now()) <= 3_600_000
+          const lineupSearchUrl = 'https://www.google.com/search?q=' +
+            encodeURIComponent(`${fixture.home_team} vs ${fixture.away_team} lineups`)
+          const btnCls = 'text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium flex items-center gap-1'
+          return (
+            <div className="mt-2 flex justify-center">
+              {lineupsWindowOpen
+                ? <a href={lineupSearchUrl} target="_blank" rel="noopener noreferrer" className={btnCls}>📋 View lineups ↗</a>
+                : <button onClick={() => setLineupOpen(true)} className={btnCls}>📋 View lineups</button>
+              }
+            </div>
+          )
+        })()}
 
         {/* Admin section */}
         {isAdmin && (
