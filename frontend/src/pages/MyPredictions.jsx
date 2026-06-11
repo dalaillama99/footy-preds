@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../api/client'
 
+const KNOCKOUT_STAGES = new Set(['LAST_32', 'LAST_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'THIRD_PLACE', 'FINAL'])
+
+function isPast(kickoff) {
+  return new Date(kickoff + 'Z') <= new Date()
+}
+
 function fmtDate(kickoff) {
   return new Date(kickoff + 'Z').toLocaleDateString('en-GB', {
     weekday: 'short', day: 'numeric', month: 'short',
@@ -27,11 +33,63 @@ function getBreakdown(homePred, awayPred, homeScore, awayScore) {
   return parts.length ? parts.join(' + ') : 'No match'
 }
 
-function PredRow({ pred }) {
+function PencilIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+      <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.263a1.75 1.75 0 0 0 0-2.474ZM4.75 13.5c-.69 0-1.25-.56-1.25-1.25v-6.5c0-.69.56-1.25 1.25-1.25H8a.75.75 0 0 0 0-1.5H4.75A2.75 2.75 0 0 0 2 5.75v6.5A2.75 2.75 0 0 0 4.75 15h6.5A2.75 2.75 0 0 0 14 12.25V9a.75.75 0 0 0-1.5 0v3.25c0 .69-.56 1.25-1.25 1.25h-6.5Z"/>
+    </svg>
+  )
+}
+
+function PredRow({ pred, onUpdated }) {
   const f = pred.fixture
+  const editable = !isPast(f.kickoff)
+  const isKnockout = KNOCKOUT_STAGES.has(f.stage)
   const scored = pred.points !== null
   const exact = pred.points === 3
   const breakdown = scored ? getBreakdown(pred.home_pred, pred.away_pred, f.home_score, f.away_score) : null
+
+  const [editing, setEditing] = useState(false)
+  const [editHome, setEditHome] = useState(String(pred.home_pred))
+  const [editAway, setEditAway] = useState(String(pred.away_pred))
+  const [editPenWinner, setEditPenWinner] = useState(pred.pen_winner ?? '')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+
+  const isDraw = editHome !== '' && editAway !== '' && parseInt(editHome) === parseInt(editAway)
+
+  const startEdit = () => {
+    setEditHome(String(pred.home_pred))
+    setEditAway(String(pred.away_pred))
+    setEditPenWinner(pred.pen_winner ?? '')
+    setSaveError('')
+    setEditing(true)
+  }
+
+  const cancelEdit = () => {
+    setEditing(false)
+    setSaveError('')
+  }
+
+  const saveEdit = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    setSaveError('')
+    try {
+      const { data } = await api.post('/predictions', {
+        fixture_id: f.id,
+        home_pred: parseInt(editHome),
+        away_pred: parseInt(editAway),
+        pen_winner: isKnockout && isDraw && editPenWinner ? editPenWinner : null,
+      })
+      onUpdated(data)
+      setEditing(false)
+    } catch (err) {
+      setSaveError(err.response?.data?.detail || 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const ptsCls =
     pred.points === 3   ? 'text-green-700 dark:text-green-400 font-bold' :
@@ -54,10 +112,28 @@ function PredRow({ pred }) {
           </p>
         </div>
 
-        {/* Prediction */}
+        {/* Your pick */}
         <div className="text-center shrink-0">
           <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Your pick</p>
-          <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm">{pred.home_pred}–{pred.away_pred}</p>
+          <div className="flex items-center gap-1 justify-center">
+            <span className="font-semibold text-gray-800 dark:text-gray-200 text-sm">
+              {pred.home_pred}–{pred.away_pred}
+            </span>
+            {editable && !editing && (
+              <button
+                onClick={startEdit}
+                className="text-gray-400 hover:text-green-600 dark:text-gray-500 dark:hover:text-green-400 transition"
+                title="Edit prediction"
+              >
+                <PencilIcon />
+              </button>
+            )}
+          </div>
+          {pred.pen_winner && !editing && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+              {pred.pen_winner === 'home' ? f.home_team.split(' ')[0] : f.away_team.split(' ')[0]} pens
+            </p>
+          )}
         </div>
 
         {/* Result */}
@@ -84,8 +160,55 @@ function PredRow({ pred }) {
         </div>
       </div>
 
+      {/* Inline edit form */}
+      {editing && (
+        <form onSubmit={saveEdit} className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 space-y-2">
+          <div className="flex items-center gap-2 justify-center">
+            <input
+              type="number" min="0" max="20" value={editHome} required
+              onChange={e => {
+                const val = e.target.value
+                setEditHome(val)
+                if (val === '' || editAway === '' || parseInt(val) !== parseInt(editAway)) setEditPenWinner('')
+              }}
+              className="w-14 text-center border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <span className="text-gray-400 dark:text-gray-500 text-sm">–</span>
+            <input
+              type="number" min="0" max="20" value={editAway} required
+              onChange={e => {
+                const val = e.target.value
+                setEditAway(val)
+                if (editHome === '' || val === '' || parseInt(editHome) !== parseInt(val)) setEditPenWinner('')
+              }}
+              className="w-14 text-center border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <button type="submit" disabled={saving}
+              className="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50">
+              {saving ? '…' : 'Save'}
+            </button>
+            <button type="button" onClick={cancelEdit}
+              className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
+              Cancel
+            </button>
+          </div>
+          {isKnockout && isDraw && (
+            <div className="flex items-center gap-2 justify-center text-xs text-gray-500 dark:text-gray-400">
+              <span>If pens:</span>
+              <select value={editPenWinner} onChange={e => setEditPenWinner(e.target.value)}
+                className="border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-green-500">
+                <option value="">— don't predict —</option>
+                <option value="home">{f.home_team}</option>
+                <option value="away">{f.away_team}</option>
+              </select>
+            </div>
+          )}
+          {saveError && <p className="text-red-500 text-xs text-center">{saveError}</p>}
+        </form>
+      )}
+
       {/* Breakdown */}
-      {breakdown && (
+      {!editing && breakdown && (
         <p className={`text-xs mt-1.5 ${pred.points > 0 ? 'text-gray-400 dark:text-gray-500' : 'text-red-300 dark:text-red-500'}`}>
           {breakdown}
         </p>
@@ -105,6 +228,10 @@ export default function MyPredictions() {
       .catch(e => setError(e.response?.data?.detail || 'Failed to load'))
       .finally(() => setLoading(false))
   }, [])
+
+  const onUpdated = (updated) => {
+    setPreds(prev => prev.map(p => p.id === updated.id ? updated : p))
+  }
 
   if (loading) return <p className="text-gray-400 dark:text-gray-500 text-sm">Loading…</p>
   if (error) return <p className="text-red-500 text-sm">{error}</p>
@@ -154,7 +281,7 @@ export default function MyPredictions() {
                 Pending ({pending.length})
               </h2>
               <div className="space-y-2">
-                {pending.map(p => <PredRow key={p.id} pred={p} />)}
+                {pending.map(p => <PredRow key={p.id} pred={p} onUpdated={onUpdated} />)}
               </div>
             </section>
           )}
@@ -166,7 +293,7 @@ export default function MyPredictions() {
                 Results ({results.length})
               </h2>
               <div className="space-y-2">
-                {results.map(p => <PredRow key={p.id} pred={p} />)}
+                {results.map(p => <PredRow key={p.id} pred={p} onUpdated={onUpdated} />)}
               </div>
             </section>
           )}

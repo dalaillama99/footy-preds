@@ -159,11 +159,12 @@ export default function FixtureCard({
     setPredError('')
     setSaving(true)
     try {
+      const isDraw = homePred !== '' && awayPred !== '' && parseInt(homePred) === parseInt(awayPred)
       const { data } = await api.post('/predictions', {
         fixture_id: fixture.id,
         home_pred: parseInt(homePred),
         away_pred: parseInt(awayPred),
-        pen_winner: isKnockout && penWinner ? penWinner : null,
+        pen_winner: isKnockout && isDraw && penWinner ? penWinner : null,
       })
       onPredictionSaved(data)
     } catch (err) {
@@ -304,18 +305,28 @@ export default function FixtureCard({
           <form onSubmit={savePrediction} className="space-y-2">
             <div className="flex items-center gap-2 justify-center">
               <input type="number" min="0" max="20" value={homePred}
-                onChange={e => setHomePred(e.target.value)} required placeholder="0"
+                onChange={e => {
+                  const val = e.target.value
+                  setHomePred(val)
+                  if (val === '' || awayPred === '' || parseInt(val) !== parseInt(awayPred)) setPenWinner('')
+                }}
+                required placeholder="0"
                 className="w-14 text-center border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
               <span className="text-gray-400 dark:text-gray-500 text-sm">–</span>
               <input type="number" min="0" max="20" value={awayPred}
-                onChange={e => setAwayPred(e.target.value)} required placeholder="0"
+                onChange={e => {
+                  const val = e.target.value
+                  setAwayPred(val)
+                  if (homePred === '' || val === '' || parseInt(homePred) !== parseInt(val)) setPenWinner('')
+                }}
+                required placeholder="0"
                 className="w-14 text-center border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
               <button type="submit" disabled={saving}
                 className="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50">
                 {saving ? '…' : prediction ? 'Update' : 'Predict'}
               </button>
             </div>
-            {isKnockout && (
+            {isKnockout && homePred !== '' && awayPred !== '' && parseInt(homePred) === parseInt(awayPred) && (
               <div className="flex items-center gap-2 justify-center text-xs text-gray-500 dark:text-gray-400">
                 <span>If pens:</span>
                 <select value={penWinner} onChange={e => setPenWinner(e.target.value)}
