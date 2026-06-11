@@ -33,11 +33,11 @@ def calculate_points(
     points = 0.0
 
     if pred_result == actual_result:
-        points += 1.0
+        points += 1.5
         if abs(pred_home - pred_away) == abs(actual_home - actual_away):
             points += 0.5
 
     if pred_home + pred_away == actual_home + actual_away:
-        points += 0.25
+        points += 0.5
 
     return points

@@ -12,7 +12,7 @@ from app.schemas import FixtureCreate, FixtureOut, FixtureScoreUpdate
 import json
 from datetime import timezone
 
-from app.services.football_api import COMPETITIONS, fetch_competition_matches, fetch_match_lineups, fetch_match_result, upsert_fixtures
+from app.services.football_api import COMPETITIONS, _recalc_points, fetch_competition_matches, fetch_match_lineups, fetch_match_result, upsert_fixtures
 from app.services.points import calculate_points
 
 router = APIRouter(prefix="/fixtures", tags=["fixtures"])
@@ -130,6 +130,35 @@ async def sync_from_api(
         raise HTTPException(status_code=502, detail=f"football-data.org error: {exc}")
 
     return await upsert_fixtures(db, matches)
+
+
+@router.post("/recalculate-all")
+async def recalculate_all_points(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Recalculate points for every prediction on every finished fixture.
+
+    Run once after a scoring-rule change so already-completed league tables
+    reflect the new values. Idempotent — safe to run repeatedly.
+    """
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    result = await db.execute(select(Fixture).where(Fixture.status == "FINISHED"))
+    fixtures = result.scalars().all()
+    fixtures_updated = predictions_updated = 0
+    for fixture in fixtures:
+        n = await _recalc_points(db, fixture)
+        if n:
+            fixtures_updated += 1
+            predictions_updated += n
+    await db.commit()
+    return {
+        "finished_fixtures": len(fixtures),
+        "fixtures_updated": fixtures_updated,
+        "predictions_updated": predictions_updated,
+    }
 
 
 @router.post("/{fixture_id}/refresh", response_model=FixtureOut)
