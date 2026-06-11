@@ -27,7 +27,7 @@ async def global_leaderboard(
         scored = sum(1 for p in preds if p.points is not None)
         entries.append(LeaderboardEntry(
             user_id=u.id,
-            username=u.username,
+            username=(u.username if user.is_admin else (u.team_name or u.username)),
             total_points=total,
             prediction_count=len(preds),
             scored_count=scored,
