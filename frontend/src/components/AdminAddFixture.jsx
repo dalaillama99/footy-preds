@@ -33,30 +33,30 @@ export default function AdminAddFixture({ onAdded }) {
   }
 
   return (
-    <form onSubmit={submit} className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
-      <h2 className="font-semibold text-amber-900 mb-4 text-sm">Add fixture</h2>
+    <form onSubmit={submit} className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-5">
+      <h2 className="font-semibold text-amber-900 dark:text-amber-400 mb-4 text-sm">Add fixture</h2>
       {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Home team</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Home team</label>
           <input name="home_team" required value={form.home_team} onChange={handle}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+            className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Away team</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Away team</label>
           <input name="away_team" required value={form.away_team} onChange={handle}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+            className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Kickoff (local time)</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Kickoff (local time)</label>
           <input name="kickoff" type="datetime-local" required value={form.kickoff} onChange={handle}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+            className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Competition (optional)</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Competition (optional)</label>
           <input name="competition" value={form.competition} onChange={handle}
             placeholder="e.g. Premier League"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+            className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
         </div>
       </div>
       <button type="submit" disabled={saving}

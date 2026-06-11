@@ -30,14 +30,14 @@ export default function AdminSyncFixtures({ onSyncDone }) {
   }
 
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6">
-      <p className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-3">Sync from football-data.org</p>
+    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-5 mb-6">
+      <p className="text-xs font-semibold text-amber-800 dark:text-amber-400 uppercase tracking-wider mb-3">Sync from football-data.org</p>
 
       <div className="flex items-center gap-3 flex-wrap">
         <select
           value={selected}
           onChange={e => setSelected(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+          className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
         >
           {competitions.map(c => (
             <option key={c.code} value={c.code}>{c.name} ({c.code})</option>
@@ -54,17 +54,17 @@ export default function AdminSyncFixtures({ onSyncDone }) {
       </div>
 
       {error && (
-        <p className="text-red-600 text-xs mt-3">{error}</p>
+        <p className="text-red-600 dark:text-red-400 text-xs mt-3">{error}</p>
       )}
 
       {result && (
-        <p className="text-amber-800 text-xs mt-3">
+        <p className="text-amber-800 dark:text-amber-400 text-xs mt-3">
           Done — {result.created} new, {result.updated} updated
           {result.points_recalculated > 0 && `, ${result.points_recalculated} predictions scored`}.
         </p>
       )}
 
-      <p className="text-amber-700 text-xs mt-3 opacity-70">
+      <p className="text-amber-700 dark:text-amber-500 text-xs mt-3 opacity-70">
         Pulls all scheduled + completed matches for the selected competition. Re-run anytime to refresh scores.
       </p>
     </div>
