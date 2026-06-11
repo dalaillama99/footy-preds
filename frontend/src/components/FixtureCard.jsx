@@ -343,7 +343,7 @@ export default function FixtureCard({
 
         {/* Lineup button */}
         {showLineups && !postponed && (() => {
-          const lineupsWindowOpen = (new Date(fixture.kickoff + 'Z').getTime() - Date.now()) <= 3_600_000
+          const lineupsWindowOpen = (new Date(fixture.kickoff + 'Z').getTime() - Date.now()) <= 3_000_000
           const lineupSearchUrl = 'https://www.google.com/search?q=' +
             encodeURIComponent(`${fixture.home_team} vs ${fixture.away_team} lineups`)
           const btnCls = 'text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium flex items-center gap-1'
