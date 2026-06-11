@@ -35,7 +35,7 @@ export default function Leaderboard({ entries }) {
               key={e.user_id}
               className={`border-b border-gray-50 dark:border-gray-700 last:border-0 ${e.user_id === user?.id ? 'bg-green-50 dark:bg-green-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
             >
-              <td className="px-5 py-3.5 text-gray-400 dark:text-gray-500">{MEDALS[ranks[i] - 1] ?? ranks[i]}</td>
+              <td className="px-5 py-3.5 text-gray-400 dark:text-gray-500">{ranks[i] === 1 ? '🥇' : ranks[i]}</td>
               <td className="px-5 py-3.5 font-medium text-gray-900 dark:text-white">
                 {e.username}
                 {e.user_id === user?.id && <span className="ml-1.5 text-xs text-green-600 dark:text-green-400">(you)</span>}

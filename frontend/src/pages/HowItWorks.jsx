@@ -25,7 +25,7 @@ export default function HowItWorks() {
         </div>
 
         <div className="flex items-start gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4">
-          <span className="text-2xl">+½</span>
+          <span className="text-2xl">⚖️</span>
           <div>
             <p className="font-semibold text-gray-900 dark:text-white">+0.5 — Correct goal difference</p>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">On top of a correct result, you also got the goal difference right.</p>
@@ -34,7 +34,7 @@ export default function HowItWorks() {
         </div>
 
         <div className="flex items-start gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4">
-          <span className="text-2xl">+½</span>
+          <span className="text-2xl">🔢</span>
           <div>
             <p className="font-semibold text-gray-900 dark:text-white">+0.5 — Correct total goals</p>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">The total number of goals matches the actual total, regardless of result.</p>
