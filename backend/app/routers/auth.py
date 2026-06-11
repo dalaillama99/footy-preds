@@ -11,7 +11,7 @@ from app.auth import create_access_token, get_current_user, hash_password, verif
 from app.config import settings
 from app.database import get_db
 from app.models import User
-from app.schemas import Token, UserLogin, UserOut, UserRegister
+from app.schemas import TeamNameUpdate, Token, UserLogin, UserOut, UserRegister
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -75,6 +75,21 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
 
 @router.get("/me", response_model=UserOut)
 async def me(user: User = Depends(get_current_user)):
+    return user
+
+
+@router.patch("/team_name", response_model=UserOut)
+async def set_team_name(
+    data: TeamNameUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    name = data.team_name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Team name cannot be empty")
+    user.team_name = name
+    await db.commit()
+    await db.refresh(user)
     return user
 
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
 from datetime import datetime
 from typing import Optional
 
@@ -27,6 +27,11 @@ class UserOut(BaseModel):
     username: str
     email: str
     is_admin: bool
+    team_name: Optional[str] = None
+
+
+class TeamNameUpdate(BaseModel):
+    team_name: str
 
 
 # ── Leagues ───────────────────────────────────────────────────────────────────
@@ -46,6 +51,11 @@ class LeagueOut(BaseModel):
     invite_code: str
     admin_id: str
     member_count: int
+    created_at: datetime
+
+
+class LeagueSettingsUpdate(BaseModel):
+    created_at: datetime
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -97,8 +107,8 @@ class FixtureOut(BaseModel):
 
 class PredictionCreate(BaseModel):
     fixture_id: str
-    home_pred: int
-    away_pred: int
+    home_pred: int = Field(..., ge=0)
+    away_pred: int = Field(..., ge=0)
     pen_winner: Optional[str] = None  # "home" or "away", only relevant for knockout fixtures
 
 
@@ -122,6 +132,8 @@ class LeaderboardEntry(BaseModel):
     total_points: float
     prediction_count: int
     scored_count: int
+    exact_count: int
+    correct_count: int
 
 
 # ── League predictions (post-kickoff, visible to all members) ─────────────────

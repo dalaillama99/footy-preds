@@ -157,13 +157,19 @@ export default function FixtureCard({
   const savePrediction = async (e) => {
     e.preventDefault()
     setPredError('')
+    const hPred = parseInt(homePred)
+    const aPred = parseInt(awayPred)
+    if (isNaN(hPred) || isNaN(aPred) || hPred < 0 || aPred < 0) {
+      setPredError('Scores cannot be negative')
+      return
+    }
     setSaving(true)
     try {
-      const isDraw = homePred !== '' && awayPred !== '' && parseInt(homePred) === parseInt(awayPred)
+      const isDraw = hPred === aPred
       const { data } = await api.post('/predictions', {
         fixture_id: fixture.id,
-        home_pred: parseInt(homePred),
-        away_pred: parseInt(awayPred),
+        home_pred: hPred,
+        away_pred: aPred,
         pen_winner: isKnockout && isDraw && penWinner ? penWinner : null,
       })
       onPredictionSaved(data)

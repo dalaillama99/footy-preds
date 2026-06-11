@@ -10,6 +10,13 @@ function fmtKickoff(kickoff) {
     ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 }
 
+function toDatetimeLocal(dtStr) {
+  if (!dtStr) return ''
+  const d = new Date(dtStr.endsWith('Z') ? dtStr : dtStr + 'Z')
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 function PointsBadge({ pts }) {
   if (pts == null) return <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
   const cls =
@@ -22,25 +29,19 @@ function PointsBadge({ pts }) {
   return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cls}`}>{label}</span>
 }
 
-function PredictionsTab({ leagueId }) {
-  const [data, setData] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    api.get(`/leagues/${leagueId}/fixture-predictions`)
-      .then(r => setData(r.data))
-      .finally(() => setLoading(false))
-  }, [leagueId])
-
-  if (loading) return <p className="text-gray-400 dark:text-gray-500 text-sm">Loading…</p>
-  if (!data.length) return <p className="text-gray-400 dark:text-gray-500 text-sm">No predictions to show yet — check back after matches kick off.</p>
+function FixturePredictions({ fixture, predictions }) {
+  const [open, setOpen] = useState(false)
 
   return (
-    <div className="space-y-6">
-      {data.map(({ fixture, predictions }) => (
-        <div key={fixture.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
-          {/* Fixture header */}
-          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-700/40">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
+      {/* Fixture header — click to expand/collapse */}
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full text-left px-4 py-3 bg-gray-50/60 dark:bg-gray-700/40 hover:bg-gray-100/60 dark:hover:bg-gray-700/60 transition"
+      >
+        <div className="flex items-center justify-between">
+          <div className="min-w-0 flex-1">
             <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">{fmtKickoff(fixture.kickoff)} · {fixture.competition}</p>
             <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
               <span>{fixture.home_team}</span>
@@ -67,36 +68,64 @@ function PredictionsTab({ leagueId }) {
               <span>{fixture.away_team}</span>
             </div>
           </div>
-
-          {/* Predictions table */}
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-700">
-                <th className="text-left px-4 py-2 font-medium">Member</th>
-                <th className="text-center px-4 py-2 font-medium">Prediction</th>
-                <th className="text-right px-4 py-2 font-medium">Points</th>
-              </tr>
-            </thead>
-            <tbody>
-              {predictions.map((p, i) => (
-                <tr key={p.user_id} className={i < predictions.length - 1 ? 'border-b border-gray-50 dark:border-gray-700' : ''}>
-                  <td className="px-4 py-2.5 text-gray-800 dark:text-gray-200 font-medium">{p.username}</td>
-                  <td className="px-4 py-2.5 text-center text-gray-600 dark:text-gray-300 font-mono">
-                    {p.home_pred}–{p.away_pred}
-                    {p.pen_winner && (
-                      <span className="ml-1 text-xs text-gray-400 dark:text-gray-500 font-sans">
-                        ({p.pen_winner === 'home' ? fixture.home_team.split(' ')[0] : fixture.away_team.split(' ')[0]} pens)
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <PointsBadge pts={p.points} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="flex items-center gap-2 ml-3 shrink-0">
+            <span className="text-xs text-gray-400 dark:text-gray-500">{predictions.length} pred{predictions.length !== 1 ? 's' : ''}</span>
+            <span className="text-gray-400 dark:text-gray-500 text-xs">{open ? '▲' : '▼'}</span>
+          </div>
         </div>
+      </button>
+
+      {/* Predictions table — only shown when expanded */}
+      {open && (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-xs text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-700">
+              <th className="text-left px-4 py-2 font-medium">Member</th>
+              <th className="text-center px-4 py-2 font-medium">Prediction</th>
+              <th className="text-right px-4 py-2 font-medium">Points</th>
+            </tr>
+          </thead>
+          <tbody>
+            {predictions.map((p, i) => (
+              <tr key={p.user_id} className={i < predictions.length - 1 ? 'border-b border-gray-50 dark:border-gray-700' : ''}>
+                <td className="px-4 py-2.5 text-gray-800 dark:text-gray-200 font-medium">{p.username}</td>
+                <td className="px-4 py-2.5 text-center text-gray-600 dark:text-gray-300 font-mono">
+                  {p.home_pred}–{p.away_pred}
+                  {p.pen_winner && (
+                    <span className="ml-1 text-xs text-gray-400 dark:text-gray-500 font-sans">
+                      ({p.pen_winner === 'home' ? fixture.home_team.split(' ')[0] : fixture.away_team.split(' ')[0]} pens)
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-2.5 text-right">
+                  <PointsBadge pts={p.points} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
+function PredictionsTab({ leagueId }) {
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.get(`/leagues/${leagueId}/fixture-predictions`)
+      .then(r => setData(r.data))
+      .finally(() => setLoading(false))
+  }, [leagueId])
+
+  if (loading) return <p className="text-gray-400 dark:text-gray-500 text-sm">Loading…</p>
+  if (!data.length) return <p className="text-gray-400 dark:text-gray-500 text-sm">No predictions to show yet — check back after matches kick off.</p>
+
+  return (
+    <div className="space-y-3">
+      {data.map(({ fixture, predictions }) => (
+        <FixturePredictions key={fixture.id} fixture={fixture} predictions={predictions} />
       ))}
     </div>
   )
@@ -120,6 +149,12 @@ export default function LeagueDetail() {
   const [leaveError, setLeaveError] = useState('')
   const [kickingId, setKickingId] = useState(null)
 
+  // Admin league settings
+  const [leagueFromDate, setLeagueFromDate] = useState('')
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [settingsError, setSettingsError] = useState('')
+  const [settingsSaved, setSettingsSaved] = useState(false)
+
   useEffect(() => {
     const fetch = async () => {
       try {
@@ -131,6 +166,9 @@ export default function LeagueDetail() {
         setLeague(l.data)
         setBoard(lb.data)
         setMembers(mem.data)
+        if (l.data.created_at) {
+          setLeagueFromDate(toDatetimeLocal(l.data.created_at))
+        }
       } finally {
         setLoading(false)
       }
@@ -165,6 +203,26 @@ export default function LeagueDetail() {
       setBoard(prev => prev.filter(e => e.user_id !== targetId))
     } finally {
       setKickingId(null)
+    }
+  }
+
+  const saveSettings = async (e) => {
+    e.preventDefault()
+    setSavingSettings(true)
+    setSettingsError('')
+    try {
+      const { data } = await api.patch(`/leagues/${id}/settings`, {
+        created_at: new Date(leagueFromDate).toISOString(),
+      })
+      setLeague(data)
+      const lb = await api.get(`/leagues/${id}/leaderboard`)
+      setBoard(lb.data)
+      setSettingsSaved(true)
+      setTimeout(() => setSettingsSaved(false), 2000)
+    } catch (err) {
+      setSettingsError(err.response?.data?.detail || 'Failed to save')
+    } finally {
+      setSavingSettings(false)
     }
   }
 
@@ -267,14 +325,41 @@ export default function LeagueDetail() {
           )}
 
           {isLeagueAdmin && (
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-4 border-t border-gray-100 dark:border-gray-700 pt-4">
-              You are the league admin — you cannot leave this league.
-            </p>
+            <>
+              <p className="text-xs text-gray-400 dark:text-gray-500 border-t border-gray-100 dark:border-gray-700 pt-4">
+                You are the league admin — you cannot leave this league.
+              </p>
+
+              {/* Admin: league settings */}
+              <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
+                <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">League Settings</h3>
+                <form onSubmit={saveSettings} className="space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <label className="text-xs text-gray-500 dark:text-gray-400">Count matches from:</label>
+                    <input
+                      type="datetime-local"
+                      value={leagueFromDate}
+                      onChange={e => setLeagueFromDate(e.target.value)}
+                      className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={savingSettings}
+                      className="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+                    >
+                      {savingSettings ? '…' : settingsSaved ? 'Saved!' : 'Save'}
+                    </button>
+                  </div>
+                  {settingsError && <p className="text-red-500 text-xs">{settingsError}</p>}
+                </form>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                  Only fixtures after this date count toward standings. Updating refreshes the leaderboard.
+                </p>
+              </div>
+            </>
           )}
         </div>
       )}
-
-
     </div>
   )
 }

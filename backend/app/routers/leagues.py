@@ -10,7 +10,7 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.models import Fixture, League, LeagueMember, Prediction, User
 from app.schemas import (
-    FixturePredictionsOut, LeagueCreate, LeagueJoin, LeagueOut,
+    FixturePredictionsOut, LeagueCreate, LeagueJoin, LeagueOut, LeagueSettingsUpdate,
     LeaderboardEntry, LeagueMemberOut, MemberPredictionOut,
 )
 
@@ -20,6 +20,10 @@ router = APIRouter(prefix="/leagues", tags=["leagues"])
 async def _member_count(db: AsyncSession, league_id: str) -> int:
     result = await db.execute(select(func.count()).where(LeagueMember.league_id == league_id))
     return result.scalar()
+
+
+def _display_name(user: User) -> str:
+    return user.team_name or user.username
 
 
 @router.post("", response_model=LeagueOut)
@@ -33,7 +37,7 @@ async def create_league(
     db.add(LeagueMember(id=str(uuid.uuid4()), user_id=user.id, league_id=league.id))
     await db.commit()
     await db.refresh(league)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=1)
+    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=1, created_at=league.created_at)
 
 
 @router.post("/join", response_model=LeagueOut)
@@ -56,7 +60,7 @@ async def join_league(
     db.add(LeagueMember(id=str(uuid.uuid4()), user_id=user.id, league_id=league.id))
     await db.commit()
     count = await _member_count(db, league.id)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count)
+    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at)
 
 
 @router.get("", response_model=list[LeagueOut])
@@ -68,7 +72,7 @@ async def my_leagues(user: User = Depends(get_current_user), db: AsyncSession = 
     for m in memberships.scalars():
         count = await _member_count(db, m.league_id)
         league = m.league
-        leagues.append(LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count))
+        leagues.append(LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at))
     return leagues
 
 
@@ -86,7 +90,30 @@ async def get_league(league_id: str, user: User = Depends(get_current_user), db:
         raise HTTPException(status_code=404, detail="League not found")
 
     count = await _member_count(db, league_id)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count)
+    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at)
+
+
+@router.patch("/{league_id}/settings", response_model=LeagueOut)
+async def update_league_settings(
+    league_id: str,
+    data: LeagueSettingsUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(League).where(League.id == league_id))
+    league = result.scalar_one_or_none()
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    if league.admin_id != user.id and not user.is_admin:
+        raise HTTPException(status_code=403, detail="Must be league admin to update settings")
+
+    # Store as UTC naive
+    dt = data.created_at
+    league.created_at = dt.replace(tzinfo=None) if dt.tzinfo else dt
+    await db.commit()
+    await db.refresh(league)
+    count = await _member_count(db, league_id)
+    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at)
 
 
 @router.get("/{league_id}/leaderboard", response_model=list[LeaderboardEntry])
@@ -111,8 +138,6 @@ async def leaderboard(
 
     entries = []
     for m in members.scalars():
-        # Only count predictions on fixtures kicking off after the league was created,
-        # so each league is a self-contained competition from its creation date.
         pred_q = select(Prediction).join(Fixture, Fixture.id == Prediction.fixture_id).where(
             Prediction.user_id == m.user_id
         )
@@ -121,12 +146,16 @@ async def leaderboard(
         preds = (await db.execute(pred_q)).scalars().all()
         total = sum(p.points or 0 for p in preds)
         scored = sum(1 for p in preds if p.points is not None)
+        exact = sum(1 for p in preds if p.points == 3)
+        correct = sum(1 for p in preds if p.points is not None and p.points >= 1.5)
         entries.append(LeaderboardEntry(
             user_id=m.user_id,
-            username=m.user.username,
+            username=_display_name(m.user),
             total_points=total,
             prediction_count=len(preds),
             scored_count=scored,
+            exact_count=exact,
+            correct_count=correct,
         ))
 
     return sorted(entries, key=lambda e: e.total_points, reverse=True)
@@ -158,7 +187,7 @@ async def get_members(
     return [
         LeagueMemberOut(
             user_id=m.user_id,
-            username=m.user.username,
+            username=_display_name(m.user),
             joined_at=m.joined_at,
             is_league_admin=(m.user_id == league.admin_id),
         )
@@ -213,12 +242,11 @@ async def league_fixture_predictions(
     )
     members = members_result.scalars().all()
     member_ids = {m.user_id for m in members}
-    user_map = {m.user_id: m.user.username for m in members}
+    user_map = {m.user_id: _display_name(m.user) for m in members}
 
     now = datetime.utcnow()
     conditions = [Fixture.kickoff <= now]
     if league.created_at is not None:
-        # Only fixtures kicking off after the league was created belong to it.
         conditions.append(Fixture.kickoff >= league.created_at)
     fixtures_result = await db.execute(
         select(Fixture).where(*conditions).order_by(Fixture.kickoff.desc())

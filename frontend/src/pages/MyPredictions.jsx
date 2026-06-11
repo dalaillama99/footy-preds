@@ -73,13 +73,19 @@ function PredRow({ pred, onUpdated }) {
 
   const saveEdit = async (e) => {
     e.preventDefault()
+    const hPred = parseInt(editHome)
+    const aPred = parseInt(editAway)
+    if (isNaN(hPred) || isNaN(aPred) || hPred < 0 || aPred < 0) {
+      setSaveError('Scores cannot be negative')
+      return
+    }
     setSaving(true)
     setSaveError('')
     try {
       const { data } = await api.post('/predictions', {
         fixture_id: f.id,
-        home_pred: parseInt(editHome),
-        away_pred: parseInt(editAway),
+        home_pred: hPred,
+        away_pred: aPred,
         pen_winner: isKnockout && isDraw && editPenWinner ? editPenWinner : null,
       })
       onUpdated(data)
@@ -140,7 +146,17 @@ function PredRow({ pred, onUpdated }) {
         <div className="text-center shrink-0 min-w-[52px]">
           <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Result</p>
           {scored ? (
-            <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm">{f.home_score}–{f.away_score}</p>
+            f.duration === 'PENALTY_SHOOTOUT' && f.home_penalties != null ? (
+              <div>
+                <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm">{f.home_score}–{f.away_score}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">({f.home_penalties}–{f.away_penalties} pens)</p>
+              </div>
+            ) : (
+              <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm">
+                {f.home_score}–{f.away_score}
+                {f.duration === 'EXTRA_TIME' && <span className="text-xs font-normal text-gray-400 dark:text-gray-500 ml-1">AET</span>}
+              </p>
+            )
           ) : (
             <p className="text-gray-300 dark:text-gray-600 text-sm font-medium">—</p>
           )}
