@@ -44,8 +44,8 @@ export default function HowItWorks() {
       </div>
 
       <div className="bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm text-gray-600 dark:text-gray-400 mt-5">
-        <p className="font-semibold text-gray-800 dark:text-gray-200 mb-1">Maximum without exact score: 2.5 pts</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">Correct result (1.5) + correct goal diff (+0.5) + total goals (+0.5). Best single-example: 2–0 → 3–1 earns 2 pts (result + goal diff).</p>
+        <p className="font-semibold text-gray-800 dark:text-gray-200 mb-1">Maximum without exact score: 2 pts</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">Correct result (1.5) + correct goal diff (+0.5). Example: predicted 2–0, actual 3–1.</p>
       </div>
     </div>
   )
