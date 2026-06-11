@@ -101,14 +101,24 @@ async def leaderboard(
     if not membership.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Not a member of this league")
 
+    league = (await db.execute(select(League).where(League.id == league_id))).scalar_one_or_none()
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+
     members = await db.execute(
         select(LeagueMember).where(LeagueMember.league_id == league_id).options(selectinload(LeagueMember.user))
     )
 
     entries = []
     for m in members.scalars():
-        preds = await db.execute(select(Prediction).where(Prediction.user_id == m.user_id))
-        preds = preds.scalars().all()
+        # Only count predictions on fixtures kicking off after the league was created,
+        # so each league is a self-contained competition from its creation date.
+        pred_q = select(Prediction).join(Fixture, Fixture.id == Prediction.fixture_id).where(
+            Prediction.user_id == m.user_id
+        )
+        if league.created_at is not None:
+            pred_q = pred_q.where(Fixture.kickoff >= league.created_at)
+        preds = (await db.execute(pred_q)).scalars().all()
         total = sum(p.points or 0 for p in preds)
         scored = sum(1 for p in preds if p.points is not None)
         entries.append(LeaderboardEntry(
@@ -194,6 +204,10 @@ async def league_fixture_predictions(
     if not membership.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Not a member of this league")
 
+    league = (await db.execute(select(League).where(League.id == league_id))).scalar_one_or_none()
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+
     members_result = await db.execute(
         select(LeagueMember).where(LeagueMember.league_id == league_id).options(selectinload(LeagueMember.user))
     )
@@ -202,8 +216,12 @@ async def league_fixture_predictions(
     user_map = {m.user_id: m.user.username for m in members}
 
     now = datetime.utcnow()
+    conditions = [Fixture.kickoff <= now]
+    if league.created_at is not None:
+        # Only fixtures kicking off after the league was created belong to it.
+        conditions.append(Fixture.kickoff >= league.created_at)
     fixtures_result = await db.execute(
-        select(Fixture).where(Fixture.kickoff <= now).order_by(Fixture.kickoff.desc())
+        select(Fixture).where(*conditions).order_by(Fixture.kickoff.desc())
     )
     fixtures = fixtures_result.scalars().all()
     if not fixtures:
