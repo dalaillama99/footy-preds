@@ -11,13 +11,13 @@ function fmtKickoff(kickoff) {
 }
 
 function PointsBadge({ pts }) {
-  if (pts == null) return <span className="text-gray-300 text-xs">—</span>
+  if (pts == null) return <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
   const cls =
-    pts === 3   ? 'bg-green-100 text-green-800' :
-    pts >= 1.5  ? 'bg-blue-100 text-blue-800' :
-    pts >= 1    ? 'bg-sky-100 text-sky-700' :
-    pts > 0     ? 'bg-gray-100 text-gray-500' :
-                  'bg-red-50 text-red-400'
+    pts === 3   ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+    pts >= 2    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+    pts >= 1.5  ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' :
+    pts > 0     ? 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' :
+                  'bg-red-50 text-red-400 dark:bg-red-900/20 dark:text-red-400'
   const label = pts === 3 ? '⭐ 3' : (pts % 1 === 0 ? pts.toFixed(0) : pts.toFixed(2))
   return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cls}`}>{label}</span>
 }
@@ -32,30 +32,37 @@ function PredictionsTab({ leagueId }) {
       .finally(() => setLoading(false))
   }, [leagueId])
 
-  if (loading) return <p className="text-gray-400 text-sm">Loading…</p>
-  if (!data.length) return <p className="text-gray-400 text-sm">No predictions to show yet — check back after matches kick off.</p>
+  if (loading) return <p className="text-gray-400 dark:text-gray-500 text-sm">Loading…</p>
+  if (!data.length) return <p className="text-gray-400 dark:text-gray-500 text-sm">No predictions to show yet — check back after matches kick off.</p>
 
   return (
     <div className="space-y-6">
       {data.map(({ fixture, predictions }) => (
-        <div key={fixture.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div key={fixture.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
           {/* Fixture header */}
-          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/60">
-            <p className="text-xs text-gray-400 mb-0.5">{fmtKickoff(fixture.kickoff)} · {fixture.competition}</p>
-            <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-700/40">
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">{fmtKickoff(fixture.kickoff)} · {fixture.competition}</p>
+            <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
               <span>{fixture.home_team}</span>
               {fixture.home_score != null && fixture.away_score != null ? (
                 <div className="text-center px-2">
-                  <span className="font-bold text-base">{fixture.home_score}–{fixture.away_score}</span>
-                  {(fixture.duration === 'EXTRA_TIME' || fixture.duration === 'PENALTY_SHOOTOUT') && (
-                    <span className="ml-1 text-xs text-gray-400 font-normal">AET</span>
-                  )}
-                  {fixture.duration === 'PENALTY_SHOOTOUT' && fixture.home_penalties != null && (
-                    <p className="text-xs text-gray-500 font-normal">({fixture.home_penalties}–{fixture.away_penalties} pens)</p>
+                  {fixture.duration === 'PENALTY_SHOOTOUT' && fixture.home_penalties != null ? (
+                    <>
+                      <span className="font-bold text-base">{fixture.home_penalties}–{fixture.away_penalties}</span>
+                      <span className="ml-1 text-xs text-gray-400 dark:text-gray-500 font-normal">pens</span>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 font-normal">{fixture.home_score}–{fixture.away_score} AET</p>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-bold text-base">{fixture.home_score}–{fixture.away_score}</span>
+                      {fixture.duration === 'EXTRA_TIME' && (
+                        <span className="ml-1 text-xs text-gray-400 dark:text-gray-500 font-normal">AET</span>
+                      )}
+                    </>
                   )}
                 </div>
               ) : (
-                <span className="text-gray-300 px-2">vs</span>
+                <span className="text-gray-300 dark:text-gray-600 px-2">vs</span>
               )}
               <span>{fixture.away_team}</span>
             </div>
@@ -64,7 +71,7 @@ function PredictionsTab({ leagueId }) {
           {/* Predictions table */}
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-xs text-gray-400 border-b border-gray-100">
+              <tr className="text-xs text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-700">
                 <th className="text-left px-4 py-2 font-medium">Member</th>
                 <th className="text-center px-4 py-2 font-medium">Prediction</th>
                 <th className="text-right px-4 py-2 font-medium">Points</th>
@@ -72,12 +79,12 @@ function PredictionsTab({ leagueId }) {
             </thead>
             <tbody>
               {predictions.map((p, i) => (
-                <tr key={p.user_id} className={i < predictions.length - 1 ? 'border-b border-gray-50' : ''}>
-                  <td className="px-4 py-2.5 text-gray-800 font-medium">{p.username}</td>
-                  <td className="px-4 py-2.5 text-center text-gray-600 font-mono">
+                <tr key={p.user_id} className={i < predictions.length - 1 ? 'border-b border-gray-50 dark:border-gray-700' : ''}>
+                  <td className="px-4 py-2.5 text-gray-800 dark:text-gray-200 font-medium">{p.username}</td>
+                  <td className="px-4 py-2.5 text-center text-gray-600 dark:text-gray-300 font-mono">
                     {p.home_pred}–{p.away_pred}
                     {p.pen_winner && (
-                      <span className="ml-1 text-xs text-gray-400 font-sans">
+                      <span className="ml-1 text-xs text-gray-400 dark:text-gray-500 font-sans">
                         ({p.pen_winner === 'home' ? fixture.home_team.split(' ')[0] : fixture.away_team.split(' ')[0]} pens)
                       </span>
                     )}
@@ -161,26 +168,26 @@ export default function LeagueDetail() {
     }
   }
 
-  if (loading) return <p className="text-gray-400 text-sm">Loading…</p>
+  if (loading) return <p className="text-gray-400 dark:text-gray-500 text-sm">Loading…</p>
   if (!league) return <p className="text-red-500 text-sm">League not found.</p>
 
   const isLeagueAdmin = league.admin_id === user?.id
 
   return (
     <div>
-      <Link to="/leagues" className="text-sm text-gray-400 hover:text-gray-600 mb-4 inline-block">← Leagues</Link>
+      <Link to="/leagues" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 mb-4 inline-block">← Leagues</Link>
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{league.name}</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{league.member_count} member{league.member_count !== 1 ? 's' : ''}</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{league.name}</h1>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{league.member_count} member{league.member_count !== 1 ? 's' : ''}</p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-gray-400 mb-1">Invite code</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">Invite code</p>
           <button
             onClick={copyCode}
-            className="font-mono text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition"
+            className="font-mono text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 px-3 py-1.5 rounded-lg transition"
           >
             {copied ? 'Copied!' : league.invite_code}
           </button>
@@ -188,15 +195,15 @@ export default function LeagueDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-gray-200">
+      <div className="flex gap-1 mb-6 border-b border-gray-200 dark:border-gray-700">
         {TABS.map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-2 text-sm font-medium transition border-b-2 -mb-px ${
               tab === t
-                ? 'border-green-600 text-green-700'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-green-600 text-green-700 dark:text-green-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
             }`}
           >
             {t}
@@ -215,16 +222,16 @@ export default function LeagueDetail() {
 
       {tab === 'Members' && (
         <div>
-          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden mb-8">
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden mb-8">
             {members.map((m, i) => (
               <div
                 key={m.user_id}
-                className={`flex items-center justify-between px-5 py-3.5 ${i < members.length - 1 ? 'border-b border-gray-50' : ''} ${m.user_id === user?.id ? 'bg-green-50' : ''}`}
+                className={`flex items-center justify-between px-5 py-3.5 ${i < members.length - 1 ? 'border-b border-gray-50 dark:border-gray-700' : ''} ${m.user_id === user?.id ? 'bg-green-50 dark:bg-green-900/20' : ''}`}
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900 text-sm">{m.username}</span>
-                  {m.user_id === user?.id && <span className="text-xs text-green-600">(you)</span>}
-                  {m.is_league_admin && <span className="text-xs text-amber-600 font-medium">Admin</span>}
+                  <span className="font-medium text-gray-900 dark:text-white text-sm">{m.username}</span>
+                  {m.user_id === user?.id && <span className="text-xs text-green-600 dark:text-green-400">(you)</span>}
+                  {m.is_league_admin && <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Admin</span>}
                 </div>
                 {isLeagueAdmin && m.user_id !== user?.id && (
                   <button
@@ -240,7 +247,7 @@ export default function LeagueDetail() {
           </div>
 
           {!isLeagueAdmin && (
-            <div className="border-t border-gray-100 pt-6">
+            <div className="border-t border-gray-100 dark:border-gray-700 pt-6">
               {leaveError && <p className="text-red-500 text-xs mb-2">{leaveError}</p>}
               {leaveConfirm ? (
                 <div className="flex items-center gap-3">
@@ -249,7 +256,7 @@ export default function LeagueDetail() {
                     className="bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition">
                     {leaving ? '…' : 'Yes, leave'}
                   </button>
-                  <button onClick={() => setLeaveConfirm(false)} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+                  <button onClick={() => setLeaveConfirm(false)} className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">Cancel</button>
                 </div>
               ) : (
                 <button onClick={() => setLeaveConfirm(true)} className="text-sm text-red-400 hover:text-red-600 transition">
@@ -260,7 +267,7 @@ export default function LeagueDetail() {
           )}
 
           {isLeagueAdmin && (
-            <p className="text-xs text-gray-400 mt-4 border-t border-gray-100 pt-4">
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-4 border-t border-gray-100 dark:border-gray-700 pt-4">
               You are the league admin — you cannot leave this league.
             </p>
           )}

@@ -32,7 +32,7 @@ function getPointsBreakdown(pred, fixture) {
       parts.push('goal diff +0.5')
     }
   }
-  if (home_pred + away_pred === home_score + away_score) parts.push('total goals +0.25')
+  if (home_pred + away_pred === home_score + away_score) parts.push('total goals +0.5')
   return parts.length ? parts.join(', ') : 'No match'
 }
 
@@ -61,11 +61,11 @@ function useCountdown(kickoff, locked) {
 function PointsBadge({ pts, breakdown }) {
   if (pts === null || pts === undefined) return null
   const cls =
-    pts === 3   ? 'bg-green-100 text-green-800' :
-    pts >= 1.5  ? 'bg-blue-100 text-blue-800' :
-    pts >= 1    ? 'bg-sky-100 text-sky-700' :
-    pts > 0     ? 'bg-gray-100 text-gray-500' :
-                  'bg-red-50 text-red-400'
+    pts === 3   ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+    pts >= 2    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+    pts >= 1.5  ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' :
+    pts > 0     ? 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' :
+                  'bg-red-50 text-red-400 dark:bg-red-900/20 dark:text-red-400'
   const label = pts === 3 ? '⭐ 3 pts' : `${pts % 1 === 0 ? pts.toFixed(0) : pts.toFixed(2)} pts`
   return (
     <span
@@ -223,29 +223,31 @@ export default function FixtureCard({
   }
 
   const borderCls = live
-    ? 'border-red-200 bg-red-50/30'
-    : postponed ? 'border-orange-100 bg-orange-50/20'
-    : finished ? 'border-gray-200 bg-gray-50/50'
-    : 'border-gray-200 bg-white'
+    ? 'border-red-200 bg-red-50/30 dark:border-red-900 dark:bg-red-900/10'
+    : postponed ? 'border-orange-100 bg-orange-50/20 dark:border-orange-900 dark:bg-orange-900/10'
+    : finished ? 'border-gray-200 bg-gray-50/50 dark:border-gray-700 dark:bg-gray-800/50'
+    : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
 
   const needsScoreInput = scoreStatus === 'FINISHED' || scoreStatus === 'LIVE'
+
+  const isPenShootout = finished && fixture.duration === 'PENALTY_SHOOTOUT' && fixture.home_penalties != null
 
   return (
     <>
       <div className={`border rounded-2xl px-5 py-4 ${borderCls}`}>
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-gray-400 dark:text-gray-500">
             {fmtKickoff(fixture.kickoff)}
             {fixture.matchday && !fixture.stage && ` · MD ${fixture.matchday}`}
             {countdown && (
-              <span className="ml-2 text-green-600 font-medium">{countdown}</span>
+              <span className="ml-2 text-green-600 dark:text-green-400 font-medium">{countdown}</span>
             )}
           </span>
           <div className="flex items-center gap-2">
             {live && <LiveBadge />}
             {finished && (
-              <span className="text-xs text-gray-400 font-medium">
+              <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">
                 {fixture.duration === 'PENALTY_SHOOTOUT' || fixture.duration === 'EXTRA_TIME' ? 'AET' : 'FT'}
               </span>
             )}
@@ -257,35 +259,40 @@ export default function FixtureCard({
         {/* Teams + score */}
         <div className="flex items-center justify-center gap-3 mb-3">
           <div className="flex items-center gap-2 flex-1 justify-end">
-            <span className="font-semibold text-gray-900 text-right text-sm">{fixture.home_team}</span>
+            <span className="font-semibold text-gray-900 dark:text-white text-right text-sm">{fixture.home_team}</span>
             <TeamCrest src={fixture.home_team_crest} alt={fixture.home_team} />
           </div>
           <div className="text-center min-w-[64px]">
             {(live || finished) ? (
-              <>
-                <span className={`text-xl font-bold ${live ? 'text-red-700' : 'text-gray-900'}`}>
+              isPenShootout ? (
+                <>
+                  <span className="text-xl font-bold text-gray-900 dark:text-white">
+                    {fixture.home_penalties}–{fixture.away_penalties}
+                  </span>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">pens</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                    {fixture.home_score}–{fixture.away_score} AET
+                  </p>
+                </>
+              ) : (
+                <span className={`text-xl font-bold ${live ? 'text-red-700' : 'text-gray-900 dark:text-white'}`}>
                   {fixture.home_score ?? '–'} – {fixture.away_score ?? '–'}
                 </span>
-                {finished && fixture.duration === 'PENALTY_SHOOTOUT' && fixture.home_penalties != null && (
-                  <p className="text-xs text-gray-500 font-medium mt-0.5">
-                    {fixture.home_penalties}–{fixture.away_penalties} pens
-                  </p>
-                )}
-              </>
+              )
             ) : (
-              <span className="text-sm text-gray-300 font-medium">vs</span>
+              <span className="text-sm text-gray-300 dark:text-gray-600 font-medium">vs</span>
             )}
           </div>
           <div className="flex items-center gap-2 flex-1 justify-start">
             <TeamCrest src={fixture.away_team_crest} alt={fixture.away_team} />
-            <span className="font-semibold text-gray-900 text-sm">{fixture.away_team}</span>
+            <span className="font-semibold text-gray-900 dark:text-white text-sm">{fixture.away_team}</span>
           </div>
         </div>
 
         {/* Locked prediction */}
         {locked && prediction && (
-          <div className="text-center text-xs text-gray-400 mb-2">
-            Your prediction: <span className="font-medium text-gray-700">{prediction.home_pred} – {prediction.away_pred}</span>
+          <div className="text-center text-xs text-gray-400 dark:text-gray-500 mb-2">
+            Your prediction: <span className="font-medium text-gray-700 dark:text-gray-200">{prediction.home_pred} – {prediction.away_pred}</span>
             {prediction.pen_winner && (
               <span className="ml-1">· {prediction.pen_winner === 'home' ? fixture.home_team : fixture.away_team} on pens</span>
             )}
@@ -298,21 +305,21 @@ export default function FixtureCard({
             <div className="flex items-center gap-2 justify-center">
               <input type="number" min="0" max="20" value={homePred}
                 onChange={e => setHomePred(e.target.value)} required placeholder="0"
-                className="w-14 text-center border border-gray-300 rounded-lg py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-              <span className="text-gray-400 text-sm">–</span>
+                className="w-14 text-center border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              <span className="text-gray-400 dark:text-gray-500 text-sm">–</span>
               <input type="number" min="0" max="20" value={awayPred}
                 onChange={e => setAwayPred(e.target.value)} required placeholder="0"
-                className="w-14 text-center border border-gray-300 rounded-lg py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                className="w-14 text-center border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
               <button type="submit" disabled={saving}
                 className="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50">
                 {saving ? '…' : prediction ? 'Update' : 'Predict'}
               </button>
             </div>
             {isKnockout && (
-              <div className="flex items-center gap-2 justify-center text-xs text-gray-500">
+              <div className="flex items-center gap-2 justify-center text-xs text-gray-500 dark:text-gray-400">
                 <span>If pens:</span>
                 <select value={penWinner} onChange={e => setPenWinner(e.target.value)}
-                  className="border border-gray-200 rounded-lg px-2 py-1 text-xs bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500">
+                  className="border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-green-500">
                   <option value="">— don't predict —</option>
                   <option value="home">{fixture.home_team}</option>
                   <option value="away">{fixture.away_team}</option>
@@ -327,7 +334,7 @@ export default function FixtureCard({
         {showLineups && fixture.api_id && !postponed && (
           <div className="mt-2 flex justify-center">
             <button onClick={() => setLineupOpen(true)}
-              className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1">
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium flex items-center gap-1">
               📋 View lineups
             </button>
           </div>
@@ -335,7 +342,7 @@ export default function FixtureCard({
 
         {/* Admin section */}
         {isAdmin && (
-          <div className="mt-3 border-t border-gray-100 pt-3">
+          <div className="mt-3 border-t border-gray-100 dark:border-gray-700 pt-3">
 
             {/* Score entry form */}
             {scoreMode ? (
@@ -345,15 +352,15 @@ export default function FixtureCard({
                     <>
                       <input type="number" min="0" max="20" value={homeScore}
                         onChange={e => setHomeScore(e.target.value)} required
-                        className="w-14 text-center border border-amber-300 rounded-lg py-1.5 text-sm focus:outline-none" />
-                      <span className="text-gray-400 text-sm">–</span>
+                        className="w-14 text-center border border-amber-300 dark:border-amber-700 dark:bg-gray-700 dark:text-gray-100 rounded-lg py-1.5 text-sm focus:outline-none" />
+                      <span className="text-gray-400 dark:text-gray-500 text-sm">–</span>
                       <input type="number" min="0" max="20" value={awayScore}
                         onChange={e => setAwayScore(e.target.value)} required
-                        className="w-14 text-center border border-amber-300 rounded-lg py-1.5 text-sm focus:outline-none" />
+                        className="w-14 text-center border border-amber-300 dark:border-amber-700 dark:bg-gray-700 dark:text-gray-100 rounded-lg py-1.5 text-sm focus:outline-none" />
                     </>
                   )}
                   <select value={scoreStatus} onChange={e => setScoreStatus(e.target.value)}
-                    className="border border-amber-300 rounded-lg py-1.5 text-xs focus:outline-none bg-white text-gray-700">
+                    className="border border-amber-300 dark:border-amber-700 rounded-lg py-1.5 text-xs focus:outline-none bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200">
                     {SCORE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                   <button type="submit" disabled={scoreSaving}
@@ -361,7 +368,7 @@ export default function FixtureCard({
                     {scoreSaving ? '…' : 'Save'}
                   </button>
                   <button type="button" onClick={() => setScoreMode(false)}
-                    className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                    className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">Cancel</button>
                 </div>
               </form>
 
@@ -373,18 +380,18 @@ export default function FixtureCard({
                   <input value={editForm.home_team}
                     onChange={e => setEditForm(f => ({ ...f, home_team: e.target.value }))}
                     placeholder="Home team" required
-                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                    className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
                   <input value={editForm.away_team}
                     onChange={e => setEditForm(f => ({ ...f, away_team: e.target.value }))}
                     placeholder="Away team" required
-                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                    className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
                   <input type="datetime-local" value={editForm.kickoff}
                     onChange={e => setEditForm(f => ({ ...f, kickoff: e.target.value }))} required
-                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                    className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
                   <input value={editForm.competition}
                     onChange={e => setEditForm(f => ({ ...f, competition: e.target.value }))}
                     placeholder="Competition"
-                    className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                    className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400" />
                 </div>
                 <div className="flex gap-2">
                   <button type="submit" disabled={editSaving}
@@ -392,7 +399,7 @@ export default function FixtureCard({
                     {editSaving ? '…' : 'Save changes'}
                   </button>
                   <button type="button" onClick={() => setEditMode(false)}
-                    className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                    className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">Cancel</button>
                 </div>
               </form>
 
@@ -405,7 +412,7 @@ export default function FixtureCard({
                   {deleting ? '…' : 'Yes, delete'}
                 </button>
                 <button onClick={() => setDeleteConfirm(false)}
-                  className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                  className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">Cancel</button>
               </div>
 
             /* Admin action row */
@@ -414,35 +421,35 @@ export default function FixtureCard({
                 {fixture.api_id && (
                   <>
                     <button onClick={refreshFromApi} disabled={refreshing}
-                      className="text-xs text-blue-500 hover:text-blue-700 font-medium disabled:opacity-50">
+                      className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium disabled:opacity-50">
                       {refreshing ? '…' : '↻ Refresh from API'}
                     </button>
-                    <span className="text-gray-200">|</span>
+                    <span className="text-gray-200 dark:text-gray-700">|</span>
                   </>
                 )}
                 <button onClick={() => { setScoreMode(true); setScoreStatus(finished ? 'FINISHED' : 'FINISHED') }}
-                  className="text-xs text-amber-600 hover:text-amber-800 font-medium">
+                  className="text-xs text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 font-medium">
                   {finished ? 'Edit score' : 'Set score'}
                 </button>
-                <span className="text-gray-200">|</span>
+                <span className="text-gray-200 dark:text-gray-700">|</span>
                 <button onClick={() => setEditMode(true)}
-                  className="text-xs text-gray-500 hover:text-gray-700 font-medium">
+                  className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 font-medium">
                   Edit details
                 </button>
                 {!postponed && (
                   <>
-                    <span className="text-gray-200">|</span>
+                    <span className="text-gray-200 dark:text-gray-700">|</span>
                     <button
                       onClick={async () => {
                         await api.post(`/fixtures/${fixture.id}/score`, { status: 'POSTPONED' })
                         onScoreSet({ ...fixture, status: 'POSTPONED', home_score: null, away_score: null })
                       }}
-                      className="text-xs text-orange-500 hover:text-orange-700 font-medium">
+                      className="text-xs text-orange-500 hover:text-orange-700 dark:hover:text-orange-400 font-medium">
                       Mark Postponed
                     </button>
                   </>
                 )}
-                <span className="text-gray-200">|</span>
+                <span className="text-gray-200 dark:text-gray-700">|</span>
                 <button onClick={() => setDeleteConfirm(true)}
                   className="text-xs text-red-400 hover:text-red-600 font-medium">
                   Delete

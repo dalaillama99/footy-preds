@@ -34,59 +34,59 @@ function PredRow({ pred }) {
   const breakdown = scored ? getBreakdown(pred.home_pred, pred.away_pred, f.home_score, f.away_score) : null
 
   const ptsCls =
-    pred.points === 3   ? 'text-green-700 font-bold' :
-    pred.points >= 1.5  ? 'text-blue-700 font-semibold' :
-    pred.points >= 1    ? 'text-sky-600 font-semibold' :
-    pred.points > 0     ? 'text-gray-500' :
+    pred.points === 3   ? 'text-green-700 dark:text-green-400 font-bold' :
+    pred.points >= 2    ? 'text-blue-700 dark:text-blue-400 font-semibold' :
+    pred.points >= 1.5  ? 'text-sky-600 dark:text-sky-400 font-semibold' :
+    pred.points > 0     ? 'text-gray-500 dark:text-gray-400' :
     scored              ? 'text-red-400' :
-                          'text-gray-400'
+                          'text-gray-400 dark:text-gray-500'
 
   return (
-    <div className={`bg-white border rounded-xl px-4 py-3 ${exact ? 'border-green-300' : 'border-gray-200'}`}>
+    <div className={`bg-white dark:bg-gray-800 border rounded-xl px-4 py-3 ${exact ? 'border-green-300 dark:border-green-700' : 'border-gray-200 dark:border-gray-700'}`}>
       <div className="flex items-center justify-between gap-3">
         {/* Match info */}
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-gray-900 text-sm truncate">
+          <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
             {f.home_team} vs {f.away_team}
           </p>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
             {f.competition && `${f.competition} · `}{fmtDate(f.kickoff)} {fmtTime(f.kickoff)}
           </p>
         </div>
 
         {/* Prediction */}
         <div className="text-center shrink-0">
-          <p className="text-xs text-gray-400 mb-0.5">Your pick</p>
-          <p className="font-semibold text-gray-800 text-sm">{pred.home_pred}–{pred.away_pred}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Your pick</p>
+          <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm">{pred.home_pred}–{pred.away_pred}</p>
         </div>
 
         {/* Result */}
         <div className="text-center shrink-0 min-w-[52px]">
-          <p className="text-xs text-gray-400 mb-0.5">Result</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Result</p>
           {scored ? (
-            <p className="font-semibold text-gray-800 text-sm">{f.home_score}–{f.away_score}</p>
+            <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm">{f.home_score}–{f.away_score}</p>
           ) : (
-            <p className="text-gray-300 text-sm font-medium">—</p>
+            <p className="text-gray-300 dark:text-gray-600 text-sm font-medium">—</p>
           )}
         </div>
 
         {/* Points */}
         <div className="text-center shrink-0 min-w-[40px]">
-          <p className="text-xs text-gray-400 mb-0.5">Pts</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Pts</p>
           {scored ? (
             <p className={`text-sm ${ptsCls}`}>
               {exact && '⭐ '}
               {pred.points % 1 === 0 ? pred.points.toFixed(0) : pred.points.toFixed(2)}
             </p>
           ) : (
-            <p className="text-gray-300 text-xs">TBD</p>
+            <p className="text-gray-300 dark:text-gray-600 text-xs">TBD</p>
           )}
         </div>
       </div>
 
       {/* Breakdown */}
       {breakdown && (
-        <p className={`text-xs mt-1.5 ${pred.points > 0 ? 'text-gray-400' : 'text-red-300'}`}>
+        <p className={`text-xs mt-1.5 ${pred.points > 0 ? 'text-gray-400 dark:text-gray-500' : 'text-red-300 dark:text-red-500'}`}>
           {breakdown}
         </p>
       )}
@@ -106,7 +106,7 @@ export default function MyPredictions() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <p className="text-gray-400 text-sm">Loading…</p>
+  if (loading) return <p className="text-gray-400 dark:text-gray-500 text-sm">Loading…</p>
   if (error) return <p className="text-red-500 text-sm">{error}</p>
 
   const pending = preds.filter(p => p.points === null)
@@ -118,15 +118,15 @@ export default function MyPredictions() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">My Predictions</h1>
-      <p className="text-gray-500 text-sm mb-5">Your full prediction history with results</p>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">My Predictions</h1>
+      <p className="text-gray-500 dark:text-gray-400 text-sm mb-5">Your full prediction history with results</p>
 
       {preds.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-4xl mb-3">🎯</p>
-          <p className="text-gray-600 font-medium">No predictions yet</p>
-          <p className="text-gray-400 text-sm mt-1 mb-4">Head to Fixtures to make your first prediction</p>
-          <Link to="/fixtures" className="text-sm text-green-600 font-medium hover:underline">View fixtures →</Link>
+          <p className="text-gray-600 dark:text-gray-300 font-medium">No predictions yet</p>
+          <p className="text-gray-400 dark:text-gray-500 text-sm mt-1 mb-4">Head to Fixtures to make your first prediction</p>
+          <Link to="/fixtures" className="text-sm text-green-600 dark:text-green-400 font-medium hover:underline">View fixtures →</Link>
         </div>
       ) : (
         <>
@@ -139,9 +139,9 @@ export default function MyPredictions() {
                 { label: 'Correct result', value: correctCount },
                 { label: 'Exact score', value: exactCount },
               ].map(s => (
-                <div key={s.label} className="bg-white border border-gray-200 rounded-2xl px-4 py-3 text-center">
-                  <p className="text-xl font-bold text-gray-900">{s.value}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
+                <div key={s.label} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-3 text-center">
+                  <p className="text-xl font-bold text-gray-900 dark:text-white">{s.value}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -150,7 +150,7 @@ export default function MyPredictions() {
           {/* Pending */}
           {pending.length > 0 && (
             <section className="mb-6">
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+              <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">
                 Pending ({pending.length})
               </h2>
               <div className="space-y-2">
@@ -162,7 +162,7 @@ export default function MyPredictions() {
           {/* Results */}
           {results.length > 0 && (
             <section>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+              <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">
                 Results ({results.length})
               </h2>
               <div className="space-y-2">

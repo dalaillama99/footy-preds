@@ -1,14 +1,14 @@
 export default function Login() {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-sm text-center">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 w-full max-w-sm text-center">
         <div className="text-5xl mb-4">⚽</div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Footy Preds</h1>
-        <p className="text-gray-500 text-sm mb-8">Sign in to make predictions and compete with your friends.</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Footy Preds</h1>
+        <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">Sign in to make predictions and compete with your friends.</p>
 
         <a
           href={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/auth/google`}
-          className="flex items-center justify-center gap-3 w-full border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-xl text-sm transition"
+          className="flex items-center justify-center gap-3 w-full border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium py-3 rounded-xl text-sm transition"
         >
           <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

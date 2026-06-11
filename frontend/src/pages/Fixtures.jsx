@@ -140,12 +140,12 @@ export default function Fixtures() {
 
   const cardProps = { isAdmin: user?.is_admin, onPredictionSaved, onScoreSet, onFixtureUpdated, onFixtureDeleted }
 
-  if (loading) return <p className="text-gray-400 text-sm">Loading fixtures…</p>
+  if (loading) return <p className="text-gray-400 dark:text-gray-500 text-sm">Loading fixtures…</p>
   if (fetchError) return (
-    <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
-      <p className="text-red-700 font-medium text-sm mb-1">Failed to load fixtures</p>
-      <p className="text-red-500 text-xs">{fetchError}</p>
-      <button onClick={fetchAll} className="mt-3 text-xs text-red-600 underline">Try again</button>
+    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-5">
+      <p className="text-red-700 dark:text-red-400 font-medium text-sm mb-1">Failed to load fixtures</p>
+      <p className="text-red-500 dark:text-red-400 text-xs">{fetchError}</p>
+      <button onClick={fetchAll} className="mt-3 text-xs text-red-600 dark:text-red-400 underline">Try again</button>
     </div>
   )
 
@@ -154,7 +154,7 @@ export default function Fixtures() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-gray-900">Fixtures</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fixtures</h1>
           {hasLive && (
             <span className="flex items-center gap-1 text-xs font-bold text-red-600">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
@@ -165,7 +165,7 @@ export default function Fixtures() {
         {user?.is_admin && (
           <div className="flex gap-2">
             <button onClick={() => { setShowSync(!showSync); setShowAdd(false) }}
-              className="border border-amber-400 text-amber-700 hover:bg-amber-50 text-sm font-medium px-3 py-1.5 rounded-lg transition">
+              className="border border-amber-400 dark:border-amber-600 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-sm font-medium px-3 py-1.5 rounded-lg transition">
               Sync API
             </button>
             <button onClick={() => { setShowAdd(!showAdd); setShowSync(false) }}
@@ -187,7 +187,7 @@ export default function Fixtures() {
               className={`text-xs font-medium px-3 py-1.5 rounded-full transition ${
                 competitionFilter === c
                   ? 'bg-green-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}>
               {c}
             </button>
@@ -196,18 +196,18 @@ export default function Fixtures() {
       )}
 
       {/* Refresh row */}
-      <div className="flex items-center justify-between mb-5 text-xs text-gray-400">
+      <div className="flex items-center justify-between mb-5 text-xs text-gray-400 dark:text-gray-500">
         <span>{lastRefresh && `Updated ${lastRefresh.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}</span>
-        <button onClick={fetchAll} className="hover:text-gray-600">↻ Refresh</button>
+        <button onClick={fetchAll} className="hover:text-gray-600 dark:hover:text-gray-300">↻ Refresh</button>
       </div>
 
       {/* Upcoming — today + tomorrow */}
       <section className="mb-8">
-        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+        <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">
           Upcoming — today &amp; tomorrow
         </h2>
         {upcoming.length === 0 ? (
-          <p className="text-gray-400 text-sm">No fixtures today or tomorrow{competitionFilter !== 'All' ? ` for ${competitionFilter}` : ''}.</p>
+          <p className="text-gray-400 dark:text-gray-500 text-sm">No fixtures today or tomorrow{competitionFilter !== 'All' ? ` for ${competitionFilter}` : ''}.</p>
         ) : (
           <div className="space-y-3">
             {upcoming.map(f => (
@@ -222,7 +222,7 @@ export default function Fixtures() {
         <section className="mb-8">
           <button
             onClick={() => setFutureOpen(o => !o)}
-            className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 hover:text-gray-600 transition w-full text-left"
+            className="flex items-center gap-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 hover:text-gray-600 dark:hover:text-gray-300 transition w-full text-left"
           >
             <span>{futureOpen ? '▾' : '▸'}</span>
             Future fixtures ({future.length}) — predict now
@@ -230,7 +230,7 @@ export default function Fixtures() {
 
           {futureOpen && futureKeys.map(key => (
             <div key={key} className="mb-6">
-              <h3 className="text-xs font-semibold text-gray-500 mb-2 pl-1 border-l-2 border-green-400">{key}</h3>
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 pl-1 border-l-2 border-green-400">{key}</h3>
               <div className="space-y-3">
                 {futureGrouped[key].map(f => (
                   <FixtureCard key={f.id} fixture={f} prediction={predictions[f.id]} showLineups={false} {...cardProps} />
@@ -246,7 +246,7 @@ export default function Fixtures() {
         <section>
           <button
             onClick={() => setPastOpen(o => !o)}
-            className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 hover:text-gray-600 transition w-full text-left"
+            className="flex items-center gap-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 hover:text-gray-600 dark:hover:text-gray-300 transition w-full text-left"
           >
             <span>{pastOpen ? '▾' : '▸'}</span>
             Past matches ({past.length})
@@ -254,7 +254,7 @@ export default function Fixtures() {
 
           {pastOpen && pastKeys.map(key => (
             <div key={key} className="mb-6">
-              <h3 className="text-xs font-semibold text-gray-500 mb-2 pl-1 border-l-2 border-green-400">{key}</h3>
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 pl-1 border-l-2 border-green-400">{key}</h3>
               <div className="space-y-3">
                 {pastGrouped[key].map(f => (
                   <FixtureCard key={f.id} fixture={f} prediction={predictions[f.id]} showLineups={false} {...cardProps} />

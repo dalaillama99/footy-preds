@@ -52,54 +52,54 @@ export default function Leagues() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">My Leagues</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">My Leagues</h1>
 
-      {error && <p className="text-red-500 text-sm mb-4 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-      {success && <p className="text-green-700 text-sm mb-4 bg-green-50 px-3 py-2 rounded-lg">{success}</p>}
+      {error && <p className="text-red-500 text-sm mb-4 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
+      {success && <p className="text-green-700 dark:text-green-400 text-sm mb-4 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg">{success}</p>}
 
       <div className="grid sm:grid-cols-2 gap-4 mb-8">
-        <form onSubmit={create} className="bg-white border border-gray-200 rounded-2xl p-5">
-          <h2 className="font-semibold text-gray-900 mb-3">Create a league</h2>
+        <form onSubmit={create} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
+          <h2 className="font-semibold text-gray-900 dark:text-white mb-3">Create a league</h2>
           <input
             required value={createName} onChange={e => setCreateName(e.target.value)}
             placeholder="League name"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
           />
           <button className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-lg transition">
             Create
           </button>
         </form>
 
-        <form onSubmit={join} className="bg-white border border-gray-200 rounded-2xl p-5">
-          <h2 className="font-semibold text-gray-900 mb-3">Join a league</h2>
+        <form onSubmit={join} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
+          <h2 className="font-semibold text-gray-900 dark:text-white mb-3">Join a league</h2>
           <input
             required value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())}
             placeholder="Invite code (e.g. AB12CD34)"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-green-500 font-mono uppercase"
+            className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-green-500 font-mono uppercase"
             maxLength={8}
           />
-          <button className="w-full bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium py-2 rounded-lg transition">
+          <button className="w-full bg-gray-800 dark:bg-gray-600 hover:bg-gray-900 dark:hover:bg-gray-500 text-white text-sm font-medium py-2 rounded-lg transition">
             Join
           </button>
         </form>
       </div>
 
       {loading ? (
-        <p className="text-gray-400 text-sm">Loading…</p>
+        <p className="text-gray-400 dark:text-gray-500 text-sm">Loading…</p>
       ) : leagues.length === 0 ? (
-        <p className="text-gray-400 text-sm">You're not in any leagues yet.</p>
+        <p className="text-gray-400 dark:text-gray-500 text-sm">You're not in any leagues yet.</p>
       ) : (
         <div className="space-y-3">
           {leagues.map(l => (
             <Link
               key={l.id} to={`/leagues/${l.id}`}
-              className="flex items-center justify-between bg-white border border-gray-200 rounded-2xl px-5 py-4 hover:border-green-400 hover:shadow-sm transition"
+              className="flex items-center justify-between bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4 hover:border-green-400 dark:hover:border-green-600 hover:shadow-sm transition"
             >
               <div>
-                <p className="font-semibold text-gray-900">{l.name}</p>
-                <p className="text-xs text-gray-400 mt-0.5 font-mono">{l.invite_code} · {l.member_count} member{l.member_count !== 1 ? 's' : ''}</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{l.name}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 font-mono">{l.invite_code} · {l.member_count} member{l.member_count !== 1 ? 's' : ''}</p>
               </div>
-              <span className="text-gray-300">›</span>
+              <span className="text-gray-300 dark:text-gray-600">›</span>
             </Link>
           ))}
         </div>

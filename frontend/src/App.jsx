@@ -8,7 +8,6 @@ import Home from './pages/Home'
 import Leagues from './pages/Leagues'
 import LeagueDetail from './pages/LeagueDetail'
 import Fixtures from './pages/Fixtures'
-import GlobalLeaderboard from './pages/GlobalLeaderboard'
 import MyPredictions from './pages/MyPredictions'
 import HowItWorks from './pages/HowItWorks'
 
@@ -26,7 +25,7 @@ function PublicRoute({ children }) {
 
 function Layout({ children }) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 py-8">{children}</main>
     </div>
@@ -42,7 +41,6 @@ export default function App() {
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/" element={<ProtectedRoute><Layout><Home /></Layout></ProtectedRoute>} />
           <Route path="/fixtures" element={<ProtectedRoute><Layout><Fixtures /></Layout></ProtectedRoute>} />
-          <Route path="/leaderboard" element={<ProtectedRoute><Layout><GlobalLeaderboard /></Layout></ProtectedRoute>} />
           <Route path="/predictions" element={<ProtectedRoute><Layout><MyPredictions /></Layout></ProtectedRoute>} />
           <Route path="/leagues" element={<ProtectedRoute><Layout><Leagues /></Layout></ProtectedRoute>} />
           <Route path="/leagues/:id" element={<ProtectedRoute><Layout><LeagueDetail /></Layout></ProtectedRoute>} />

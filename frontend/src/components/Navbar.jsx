@@ -10,8 +10,8 @@ export default function Navbar() {
       to={to}
       className={`text-sm font-medium transition ${
         pathname === to || pathname.startsWith(to + '/')
-          ? 'text-green-700'
-          : 'text-gray-500 hover:text-gray-900'
+          ? 'text-green-600 dark:text-green-400'
+          : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
       }`}
     >
       {label}
@@ -19,14 +19,13 @@ export default function Navbar() {
   )
 
   return (
-    <nav className="bg-white border-b border-gray-200">
+    <nav className="bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-700">
       <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link to="/" className="font-bold text-green-700">Footy Preds</Link>
+          <Link to="/" className="font-bold text-green-700 dark:text-green-500">Footy Preds</Link>
           {user && (
             <>
               {link('/fixtures', 'Fixtures')}
-              {link('/leaderboard', 'Leaderboard')}
               {link('/leagues', 'Leagues')}
               {link('/predictions', 'My Predictions')}
               {link('/how-it-works', 'How it works')}
@@ -35,8 +34,8 @@ export default function Navbar() {
         </div>
         {user && (
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500 hidden sm:inline">{user.username}</span>
-            <button onClick={logout} className="text-sm text-gray-400 hover:text-red-500 transition">
+            <span className="text-sm text-gray-500 dark:text-gray-400 hidden sm:inline">{user.username}</span>
+            <button onClick={logout} className="text-sm text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition">
               Sign out
             </button>
           </div>
