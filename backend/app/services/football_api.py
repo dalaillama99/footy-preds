@@ -75,21 +75,27 @@ def _to_utc_naive(dt: datetime) -> datetime:
 def _parse_match(m: dict, competition_override: str = "") -> dict:
     score_data = m.get("score", {})
     full_time = score_data.get("fullTime", {})
+    regular_time = score_data.get("regularTime", {})
     extra_time = score_data.get("extraTime", {})
     penalties = score_data.get("penalties", {})
     duration = score_data.get("duration") or "REGULAR"
 
-    # football-data.org field meanings:
-    #   fullTime  = score at 90 min
-    #   extraTime = cumulative AET score for EXTRA_TIME matches;
-    #               for PENALTY_SHOOTOUT it holds the penalty scores (not ET goals)
-    #   penalties = penalty shootout score
+    # football-data.org v4 score fields:
+    #   regularTime = score at the end of 90 min
+    #   extraTime   = goals scored DURING extra time only (NOT cumulative)
+    #   penalties   = penalty shootout score
+    #   fullTime    = decisive total — equals regularTime + extraTime for an
+    #                 EXTRA_TIME result, but regularTime + extraTime + penalties
+    #                 for a PENALTY_SHOOTOUT (it bakes the shootout into the score).
     #
-    # So for EXTRA_TIME: use extraTime as the final score.
-    # For PENALTY_SHOOTOUT: use fullTime (the AET score before pens).
-    if duration == "EXTRA_TIME" and extra_time.get("home") is not None:
-        home_score = extra_time["home"]
-        away_score = extra_time["away"]
+    # We store the outfield score *excluding* penalties (the FT / AET score):
+    #   - REGULAR / EXTRA_TIME: fullTime already is that score.
+    #   - PENALTY_SHOOTOUT: rebuild it from regularTime + extraTime and keep the
+    #     shootout in home/away_penalties, so a 1-1 (4-3 pens) final is stored as
+    #     1-1 with pens 4-3 — not 5-4.
+    if duration == "PENALTY_SHOOTOUT" and regular_time.get("home") is not None:
+        home_score = regular_time["home"] + (extra_time.get("home") or 0)
+        away_score = regular_time["away"] + (extra_time.get("away") or 0)
     else:
         home_score = full_time.get("home")
         away_score = full_time.get("away")
@@ -149,9 +155,17 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
     - Auto-calculates prediction points when a match transitions to FINISHED.
     Returns a summary dict.
     """
-    created = updated = points_recalculated = 0
+    created = updated = points_recalculated = skipped = 0
 
     for m in matches:
+        # Skip fixtures whose teams aren't known yet — e.g. World Cup knockout slots
+        # before the bracket is drawn come back with null team names. Inserting them
+        # would violate the NOT NULL constraint on fixtures.home_team and abort the
+        # whole sync. They'll be created on a later re-sync once teams are confirmed.
+        if m["home_team"] is None or m["away_team"] is None:
+            skipped += 1
+            continue
+
         result = await db.execute(select(Fixture).where(Fixture.api_id == m["api_id"]))
         fixture = result.scalar_one_or_none()
 
@@ -200,7 +214,7 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
             created += 1
 
     await db.commit()
-    return {"created": created, "updated": updated, "points_recalculated": points_recalculated, "total": len(matches)}
+    return {"created": created, "updated": updated, "points_recalculated": points_recalculated, "skipped": skipped, "total": len(matches)}
 
 
 async def fetch_match_result(api_id: int) -> dict:
