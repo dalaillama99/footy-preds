@@ -80,6 +80,7 @@ class LeagueMemberOut(BaseModel):
     username: str
     joined_at: datetime
     is_league_admin: bool
+    real_name: Optional[str] = None
 
 
 class FixtureOut(BaseModel):
@@ -134,6 +135,7 @@ class LeaderboardEntry(BaseModel):
     scored_count: int
     exact_count: int
     correct_count: int
+    real_name: Optional[str] = None
 
 
 # ── League predictions (post-kickoff, visible to all members) ─────────────────

@@ -15,8 +15,13 @@ logger = logging.getLogger(__name__)
 
 from datetime import timedelta
 
-_RESULT_INITIAL_DELAY_HOURS = 2.0   # first check 2h after kickoff
-_RESULT_RETRY_INTERVAL = timedelta(minutes=15)
+# Every kicked-off, not-yet-FINISHED fixture is polled individually from kickoff
+# (no initial delay) on a steady ~2 min cadence until it reaches FINISHED. Calls are
+# spaced with asyncio.sleep so we stay under the football-data.org free-tier 10 req/min
+# limit; the single global /matches?status=LIVE call remains an efficient fast path.
+_RESULT_INITIAL_DELAY_HOURS = 0.0   # start checking immediately at kickoff
+_RESULT_RETRY_INTERVAL = timedelta(minutes=2)
+_PER_FIXTURE_CALL_SPACING = 7.0     # seconds between per-fixture calls (<10 req/min)
 _last_result_check: dict[str, datetime] = {}  # fixture_id → last check time
 
 app = FastAPI(title="Footy Preds API")
@@ -44,8 +49,10 @@ async def _has_active_matches() -> bool:
 
 async def _get_fixtures_due_result_check() -> list:
     """
-    Fixtures ≥2h past kickoff, not yet FINISHED/POSTPONED, and due for a result check.
-    First check happens 2h after kickoff; retries every 15 min until result confirmed.
+    Every kicked-off (kickoff has passed), not-yet-FINISHED fixture with an api_id
+    that is due for an individual poll. With _RESULT_INITIAL_DELAY_HOURS=0 checks
+    begin at kickoff; each fixture is then re-polled every _RESULT_RETRY_INTERVAL
+    (~2 min) until it reaches FINISHED/POSTPONED.
     """
     async with AsyncSessionLocal() as db:
         result = await db.execute(
@@ -70,17 +77,26 @@ async def _live_score_poller():
     """
     Poll football-data.org for scores every 60 seconds.
     Strategy:
-    - 1 call/min via GET /matches?status=LIVE covers all in-progress matches
-    - For fixtures ≥2h past kickoff: check individually every 15 min until FINISHED
-      (handles ET, penalties, or delayed result reporting)
-    - Total well within the 10 req/min free-tier limit
+    - Fast path: 1 call/min via GET /matches?status=LIVE covers all in-progress
+      matches in a single request.
+    - Per-fixture: EVERY kicked-off, not-yet-FINISHED fixture with an api_id is
+      polled individually starting at kickoff (no 2h delay), each roughly every
+      2 min until FINISHED. This catches matches the global LIVE call may miss
+      (just-finished, ET/penalties, delayed reporting).
+    - Rate safety: per-fixture calls are spaced by _PER_FIXTURE_CALL_SPACING
+      seconds and capped per cycle so the global call + per-fixture calls stay
+      under the 10 req/min free-tier limit.
     """
     from app.services.football_api import fetch_live_matches, fetch_match_result, upsert_fixtures
+
+    # Budget per 60s cycle: reserve 1 slot for the global LIVE call, keep the rest
+    # for per-fixture polls, staying comfortably under 10 req/min.
+    max_per_fixture_calls = max(1, int(60 / _PER_FIXTURE_CALL_SPACING) - 2)  # ~6
 
     while True:
         await asyncio.sleep(60)
         try:
-            # Poll currently live matches
+            # Fast path: poll all currently live matches in a single call
             if await _has_active_matches():
                 matches = await fetch_live_matches()
                 if matches:
@@ -90,17 +106,19 @@ async def _live_score_poller():
                             logger.info("Live poll: %d matches, %d predictions scored",
                                         result["total"], result["points_recalculated"])
 
-            # Check fixtures ≥2h past kickoff for final result (retry every 15 min)
+            # Per-fixture: poll each kicked-off, not-finished fixture on a ~2 min cadence.
+            # Oldest-checked first so nothing starves when more are due than fit in a cycle.
             due = await _get_fixtures_due_result_check()
-            for fixture in due:
+            due.sort(key=lambda f: _last_result_check.get(f.id) or datetime.min)
+            for fixture in due[:max_per_fixture_calls]:
                 try:
                     match_data = await fetch_match_result(fixture.api_id)
                     _last_result_check[fixture.id] = datetime.utcnow()
                     async with AsyncSessionLocal() as db:
                         await upsert_fixtures(db, [match_data])
-                    await asyncio.sleep(6)  # stay within 10 req/min
                 except Exception as exc:
                     logger.warning("Failed to check result for fixture %s: %s", fixture.api_id, exc)
+                await asyncio.sleep(_PER_FIXTURE_CALL_SPACING)  # stay within 10 req/min
 
         except Exception as exc:
             logger.warning("Score poll failed: %s", exc)

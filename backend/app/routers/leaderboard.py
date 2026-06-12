@@ -27,9 +27,10 @@ async def global_leaderboard(
         scored = sum(1 for p in preds if p.points is not None)
         entries.append(LeaderboardEntry(
             user_id=u.id,
-            username=(u.username if user.is_admin else (u.team_name or u.username)),
+            username=(u.team_name or u.username),
             total_points=total,
             prediction_count=len(preds),
             scored_count=scored,
+            real_name=(u.username if user.is_admin else None),
         ))
     return sorted(entries, key=lambda e: (-e.total_points, -e.scored_count, e.username))

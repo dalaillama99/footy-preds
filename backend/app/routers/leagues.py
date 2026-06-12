@@ -22,10 +22,9 @@ async def _member_count(db: AsyncSession, league_id: str) -> int:
     return result.scalar()
 
 
-def _display_name(user: User, viewer_is_admin: bool = False) -> str:
-    # Real (Google) names are obscured behind team names — except for the global admin.
-    if viewer_is_admin:
-        return user.username
+def _display_name(user: User) -> str:
+    # Real (Google) names are always obscured behind team names; admins see the
+    # real name separately via the `real_name` field, not in the main display.
     return user.team_name or user.username
 
 
@@ -150,15 +149,16 @@ async def leaderboard(
         total = sum(p.points or 0 for p in preds)
         scored = sum(1 for p in preds if p.points is not None)
         exact = sum(1 for p in preds if p.points is not None and p.points >= 3)
-        correct = sum(1 for p in preds if p.points is not None and p.points >= 1.5)
+        correct = sum(1 for p in preds if p.points is not None and 1.5 <= p.points < 3)
         entries.append(LeaderboardEntry(
             user_id=m.user_id,
-            username=_display_name(m.user, user.is_admin),
+            username=_display_name(m.user),
             total_points=total,
             prediction_count=len(preds),
             scored_count=scored,
             exact_count=exact,
             correct_count=correct,
+            real_name=(m.user.username if user.is_admin else None),
         ))
 
     return sorted(entries, key=lambda e: e.total_points, reverse=True)
@@ -190,9 +190,10 @@ async def get_members(
     return [
         LeagueMemberOut(
             user_id=m.user_id,
-            username=_display_name(m.user, user.is_admin),
+            username=_display_name(m.user),
             joined_at=m.joined_at,
             is_league_admin=(m.user_id == league.admin_id),
+            real_name=(m.user.username if user.is_admin else None),
         )
         for m in members_result.scalars()
     ]
@@ -245,7 +246,7 @@ async def league_fixture_predictions(
     )
     members = members_result.scalars().all()
     member_ids = {m.user_id for m in members}
-    user_map = {m.user_id: _display_name(m.user, user.is_admin) for m in members}
+    user_map = {m.user_id: _display_name(m.user) for m in members}
 
     now = datetime.utcnow()
     conditions = [Fixture.kickoff <= now]
