@@ -27,7 +27,7 @@ export default function Leaderboard({ entries }) {
 
   // real_name is a string only for the global admin viewer; otherwise null.
   const showRealName = entries.some(e => e.real_name != null)
-  const colSpan = showRealName ? 5 : 4
+  const colSpan = showRealName ? 4 : 3
 
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-x-auto">
@@ -39,8 +39,7 @@ export default function Leaderboard({ entries }) {
             {showRealName && (
               <th className="text-left text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 sm:px-4 py-2.5 sm:py-3">Name</th>
             )}
-            <th className="text-right text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-1.5 sm:px-3 py-2.5 sm:py-3">Pred</th>
-            <th className="text-right text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-1.5 sm:px-3 py-2.5 sm:py-3">Done</th>
+            <th className="text-right text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-1.5 sm:px-3 py-2.5 sm:py-3">Played</th>
             <th className="text-right text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 sm:px-4 py-2.5 sm:py-3">Pts</th>
           </tr>
         </thead>
@@ -59,7 +58,6 @@ export default function Leaderboard({ entries }) {
                 {showRealName && (
                   <td className="px-2 sm:px-4 py-3 sm:py-3.5 text-gray-500 dark:text-gray-400">{e.real_name}</td>
                 )}
-                <td className="px-1.5 sm:px-3 py-3 sm:py-3.5 text-right text-gray-500 dark:text-gray-400">{e.prediction_count}</td>
                 <td className="px-1.5 sm:px-3 py-3 sm:py-3.5 text-right text-gray-500 dark:text-gray-400">{e.scored_count}</td>
                 <td className="px-2 sm:px-4 py-3 sm:py-3.5 text-right font-bold text-gray-900 dark:text-white">
                   {e.total_points % 1 === 0 ? e.total_points.toFixed(0) : e.total_points.toFixed(2)}
