@@ -11,7 +11,6 @@ import Leagues from './pages/Leagues'
 import LeagueDetail from './pages/LeagueDetail'
 import Fixtures from './pages/Fixtures'
 import MyPredictions from './pages/MyPredictions'
-import HowItWorks from './pages/HowItWorks'
 
 function TeamNameModal() {
   const { user, setUser } = useAuth()
@@ -99,7 +98,6 @@ export default function App() {
           <Route path="/predictions" element={<ProtectedRoute><Layout><MyPredictions /></Layout></ProtectedRoute>} />
           <Route path="/leagues" element={<ProtectedRoute><Layout><Leagues /></Layout></ProtectedRoute>} />
           <Route path="/leagues/:id" element={<ProtectedRoute><Layout><LeagueDetail /></Layout></ProtectedRoute>} />
-          <Route path="/how-it-works" element={<ProtectedRoute><Layout><HowItWorks /></Layout></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>

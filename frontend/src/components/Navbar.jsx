@@ -28,7 +28,6 @@ export default function Navbar() {
               {link('/fixtures', 'Fixtures')}
               {link('/leagues', 'Leagues')}
               {link('/predictions', 'My Predictions')}
-              {link('/how-it-works', 'How it works')}
             </>
           )}
         </div>

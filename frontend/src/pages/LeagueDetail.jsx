@@ -77,33 +77,35 @@ function FixturePredictions({ fixture, predictions }) {
 
       {/* Predictions table — only shown when expanded */}
       {open && (
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-xs sm:text-sm">
           <thead>
-            <tr className="text-xs text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-700">
-              <th className="text-left px-4 py-2 font-medium">Member</th>
-              <th className="text-center px-4 py-2 font-medium">Prediction</th>
-              <th className="text-right px-4 py-2 font-medium">Points</th>
+            <tr className="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-700">
+              <th className="text-left px-2 sm:px-4 py-2 font-medium">Member</th>
+              <th className="text-center px-2 sm:px-4 py-2 font-medium">Prediction</th>
+              <th className="text-right px-2 sm:px-4 py-2 font-medium">Points</th>
             </tr>
           </thead>
           <tbody>
             {predictions.map((p, i) => (
               <tr key={p.user_id} className={i < predictions.length - 1 ? 'border-b border-gray-50 dark:border-gray-700' : ''}>
-                <td className="px-4 py-2.5 text-gray-800 dark:text-gray-200 font-medium">{p.username}</td>
-                <td className="px-4 py-2.5 text-center text-gray-600 dark:text-gray-300 font-mono">
+                <td className="px-2 sm:px-4 py-2.5 text-gray-800 dark:text-gray-200 font-medium">{p.username}</td>
+                <td className="px-2 sm:px-4 py-2.5 text-center text-gray-600 dark:text-gray-300 font-mono">
                   {p.home_pred}–{p.away_pred}
                   {p.pen_winner && (
-                    <span className="ml-1 text-xs text-gray-400 dark:text-gray-500 font-sans">
+                    <span className="ml-1 text-[10px] sm:text-xs text-gray-400 dark:text-gray-500 font-sans">
                       ({p.pen_winner === 'home' ? fixture.home_team.split(' ')[0] : fixture.away_team.split(' ')[0]} pens)
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-2.5 text-right">
+                <td className="px-2 sm:px-4 py-2.5 text-right">
                   <PointsBadge pts={p.points} />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   )

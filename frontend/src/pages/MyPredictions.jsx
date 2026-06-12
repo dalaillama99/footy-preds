@@ -256,8 +256,9 @@ export default function MyPredictions() {
   const results = preds.filter(p => p.points !== null)
 
   const totalPts = results.reduce((s, p) => s + p.points, 0)
-  const exactCount = results.filter(p => p.points === 3).length
-  const correctCount = results.filter(p => p.points >= 1).length
+  const exactCount = results.filter(p => p.points >= 3).length
+  // Correct result but NOT exact: 1.5 ≤ pts < 3 (so the two categories never overlap)
+  const correctCount = results.filter(p => p.points >= 1.5 && p.points < 3).length
 
   return (
     <div>
@@ -275,16 +276,16 @@ export default function MyPredictions() {
         <>
           {/* Stats summary */}
           {results.length > 0 && (
-            <div className="grid grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-3 mb-6">
               {[
                 { label: 'Total pts', value: totalPts % 1 === 0 ? totalPts.toFixed(0) : totalPts.toFixed(2) },
                 { label: 'Scored', value: results.length },
-                { label: 'Correct result', value: correctCount },
+                { label: 'Correct only', value: correctCount },
                 { label: 'Exact score', value: exactCount },
               ].map(s => (
-                <div key={s.label} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-3 text-center">
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">{s.value}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{s.label}</p>
+                <div key={s.label} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl sm:rounded-2xl px-1.5 sm:px-4 py-2.5 sm:py-3 text-center">
+                  <p className="text-base sm:text-xl font-bold text-gray-900 dark:text-white">{s.value}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500 mt-0.5 leading-tight">{s.label}</p>
                 </div>
               ))}
             </div>
