@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import create_access_token, get_current_user, hash_password, verify_password
@@ -91,6 +91,21 @@ async def set_team_name(
     await db.commit()
     await db.refresh(user)
     return user
+
+
+@router.post("/reset-team-names")
+async def reset_all_team_names(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """One-off admin action: clear every user's team_name so the set-team-name
+    prompt (which fires when team_name is null) re-appears for everyone on their
+    next visit, letting them add or change it."""
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    result = await db.execute(update(User).values(team_name=None))
+    await db.commit()
+    return {"cleared": result.rowcount}
 
 
 @router.get("/google")
