@@ -83,6 +83,21 @@ async def submit_bracket(
     return bracket
 
 
+@router.delete("/me")
+async def delete_my_bracket(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Clear the current user's bracket so they can re-submit."""
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    result = await db.execute(select(BracketPrediction).where(BracketPrediction.user_id == user.id))
+    bracket = result.scalar_one_or_none()
+    if not bracket:
+        raise HTTPException(status_code=404, detail="No bracket found")
+    await db.delete(bracket)
+    await db.commit()
+    return {"deleted": True}
+
+
 @router.post("/score")
 async def score_brackets(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Admin action: compute points for ALL brackets from real World Cup fixtures.
