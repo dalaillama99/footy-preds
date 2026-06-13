@@ -89,6 +89,8 @@ export default function BracketModal() {
 
   useEffect(() => {
     if (!user) return
+    // TEMP DISABLED — remove the next line to re-enable for admins.
+    return
     // ADMIN GATE — remove this line to roll out to all users.
     if (!user.is_admin) return
 
