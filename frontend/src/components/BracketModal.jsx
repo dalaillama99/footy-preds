@@ -14,7 +14,7 @@ import api from '../api/client'
 
 // Typeahead field: searches the WC team list and shows each option's flag
 // (crest) next to the team name in UPPERCASE.
-function TeamTypeahead({ value, onChange, options, placeholder }) {
+function TeamTypeahead({ value, onChange, options, placeholder, disabled = false }) {
   const [query, setQuery] = useState(value || '')
   const [open, setOpen] = useState(false)
   const wrapRef = useRef(null)
@@ -46,7 +46,8 @@ function TeamTypeahead({ value, onChange, options, placeholder }) {
         onChange={(e) => { setQuery(e.target.value); setOpen(true); onChange('') }}
         onFocus={() => setOpen(true)}
         placeholder={placeholder}
-        className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-green-500"
+        disabled={disabled}
+        className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
       />
       {open && matches.length > 0 && (
         <ul className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg">
@@ -159,6 +160,11 @@ export default function BracketModal() {
   const semi1Teams = teams.filter(t => t.name === semi1A || t.name === semi1B)
   const semi2Teams = teams.filter(t => t.name === semi2A || t.name === semi2B)
 
+  // Semi-final options exclude teams already selected in the other three semi-final fields.
+  const selectedSemiTeams = [semi1A, semi1B, semi2A, semi2B].filter(Boolean)
+  const semiOptionsFor = (ownValue) =>
+    teams.filter(t => t.name === ownValue || !selectedSemiTeams.includes(t.name))
+
   // When a semi-final field changes, reset the dependent finalist if it's no
   // longer one of that semi's two teams (avoids stale finalist selections).
   const updateSemi1A = (v) => { setSemi1A(v); if (finalist1 && finalist1 !== v && finalist1 !== semi1B) setFinalist1('') }
@@ -198,7 +204,7 @@ export default function BracketModal() {
         <div className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-700">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">🏆 Bonus bracket prediction</h2>
           <div className="text-sm text-gray-500 dark:text-gray-400 space-y-3">
-            <p>A bonus, long-range prediction — enter now and it's locked in for good. 🔒 Points land in your league standings at the end of the tournament.</p>
+            <p>A long-range prediction for some bonus points at the end of the world cup! Enter now and it's locked in for good. 🔒 Points land in your league standings at the end of the tournament.</p>
             <ul className="space-y-1">
               <li>🎯 Nail both semi-final matchups → <strong>5 pts</strong></li>
               <li>🏆 Get both finalists correct → <strong>5 pts</strong></li>
@@ -222,21 +228,21 @@ export default function BracketModal() {
             <div className="flex-1 flex flex-col">
               <div className="flex-1 flex flex-col justify-center gap-2 pb-2">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Semi-final 1</p>
-                <div ref={sf1ARef}><TeamTypeahead value={semi1A} onChange={updateSemi1A} options={teams} placeholder="" /></div>
-                <div ref={sf1BRef}><TeamTypeahead value={semi1B} onChange={updateSemi1B} options={teams} placeholder="" /></div>
+                <div ref={sf1ARef}><TeamTypeahead value={semi1A} onChange={updateSemi1A} options={semiOptionsFor(semi1A)} placeholder="" /></div>
+                <div ref={sf1BRef}><TeamTypeahead value={semi1B} onChange={updateSemi1B} options={semiOptionsFor(semi1B)} placeholder="" /></div>
               </div>
               <div className="flex-1 flex flex-col justify-center gap-2 pt-2">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Semi-final 2</p>
-                <div ref={sf2ARef}><TeamTypeahead value={semi2A} onChange={updateSemi2A} options={teams} placeholder="" /></div>
-                <div ref={sf2BRef}><TeamTypeahead value={semi2B} onChange={updateSemi2B} options={teams} placeholder="" /></div>
+                <div ref={sf2ARef}><TeamTypeahead value={semi2A} onChange={updateSemi2A} options={semiOptionsFor(semi2A)} placeholder="" /></div>
+                <div ref={sf2BRef}><TeamTypeahead value={semi2B} onChange={updateSemi2B} options={semiOptionsFor(semi2B)} placeholder="" /></div>
               </div>
             </div>
 
             {/* Right column — finalists */}
             <div className="flex-1 flex flex-col justify-center gap-4">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Final</p>
-              <div ref={fin1Ref}><TeamTypeahead value={finalist1} onChange={setFinalist1} options={semi1Teams} placeholder="" /></div>
-              <div ref={fin2Ref}><TeamTypeahead value={finalist2} onChange={setFinalist2} options={semi2Teams} placeholder="" /></div>
+              <div ref={fin1Ref}><TeamTypeahead value={finalist1} onChange={setFinalist1} options={semi1Teams} placeholder="" disabled={!byName(semi1A) || !byName(semi1B)} /></div>
+              <div ref={fin2Ref}><TeamTypeahead value={finalist2} onChange={setFinalist2} options={semi2Teams} placeholder="" disabled={!byName(semi2A) || !byName(semi2B)} /></div>
             </div>
 
             {/* Absolute SVG overlay — lines drawn from measured input positions */}
