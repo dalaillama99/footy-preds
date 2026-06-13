@@ -233,6 +233,63 @@ function PredRow({ pred, onUpdated }) {
   )
 }
 
+function BracketSection() {
+  const [bracket, setBracket] = useState(undefined) // undefined = loading, null = none
+
+  useEffect(() => {
+    api.get('/bracket/me')
+      .then(r => setBracket(r.data))
+      .catch(() => setBracket(null))
+  }, [])
+
+  if (bracket === undefined || bracket === null) return null
+
+  const ptsLabel = bracket.points != null
+    ? (bracket.points % 1 === 0 ? bracket.points.toFixed(0) : bracket.points.toFixed(2)) + ' pts'
+    : 'Pending'
+  const ptsCls = bracket.points > 0
+    ? 'text-green-700 dark:text-green-400 font-semibold'
+    : bracket.points === 0
+      ? 'text-red-400'
+      : 'text-gray-400 dark:text-gray-500'
+
+  return (
+    <section className="mb-8">
+      <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">
+        Bracket Prediction
+      </h2>
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 space-y-3">
+            <div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">Semi-final 1</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                {bracket.semi1_a} <span className="text-gray-400 dark:text-gray-500 font-normal">vs</span> {bracket.semi1_b}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">Semi-final 2</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                {bracket.semi2_a} <span className="text-gray-400 dark:text-gray-500 font-normal">vs</span> {bracket.semi2_b}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">Finalists</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                {bracket.finalist1} <span className="text-gray-400 dark:text-gray-500 font-normal">&</span> {bracket.finalist2}
+              </p>
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">Bonus pts</p>
+            <p className={`text-sm ${ptsCls}`}>{ptsLabel}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function MyPredictions() {
   const [preds, setPreds] = useState([])
   const [loading, setLoading] = useState(true)
@@ -264,6 +321,8 @@ export default function MyPredictions() {
     <div>
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">My Predictions</h1>
       <p className="text-gray-500 dark:text-gray-400 text-sm mb-5">Your full prediction history with results</p>
+
+      <BracketSection />
 
       {preds.length === 0 ? (
         <div className="text-center py-12">

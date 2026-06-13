@@ -33,10 +33,6 @@ async def list_teams(user: User = Depends(get_current_user), db: AsyncSession = 
 
 @router.get("/me", response_model=BracketPredictionOut | None)
 async def my_bracket(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    # Admin-only while in test (remove this guard to un-gate for all users).
-    if not user.is_admin:
-        raise HTTPException(status_code=403, detail="Admin only")
-
     result = await db.execute(select(BracketPrediction).where(BracketPrediction.user_id == user.id))
     return result.scalar_one_or_none()
 
