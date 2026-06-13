@@ -116,6 +116,7 @@ def _parse_match(m: dict, competition_override: str = "") -> dict:
         "status": _STATUS_MAP.get(m["status"], "SCHEDULED"),
         "home_score": home_score,
         "away_score": away_score,
+        "minute": m.get("minute"),
         "duration": duration,
         "home_penalties": penalties.get("home"),
         "away_penalties": penalties.get("away"),
@@ -176,6 +177,7 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
             fixture.status = m["status"]
             fixture.home_score = m["home_score"]
             fixture.away_score = m["away_score"]
+            fixture.minute = m.get("minute")
             fixture.home_team_crest = m["home_team_crest"]
             fixture.away_team_crest = m["away_team_crest"]
             fixture.duration = m.get("duration")
@@ -202,6 +204,7 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
                 status=m["status"],
                 home_score=m["home_score"],
                 away_score=m["away_score"],
+                minute=m.get("minute"),
                 duration=m.get("duration"),
                 home_penalties=m.get("home_penalties"),
                 away_penalties=m.get("away_penalties"),

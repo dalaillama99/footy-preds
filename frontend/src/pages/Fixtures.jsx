@@ -80,11 +80,9 @@ export default function Fixtures() {
   useEffect(() => { fetchAll() }, [fetchAll])
 
   useEffect(() => {
-    const hasLive = fixtures.some(f => f.status === 'LIVE')
-    clearInterval(pollerRef.current)
-    if (hasLive) pollerRef.current = setInterval(fetchAll, 60_000)
+    pollerRef.current = setInterval(fetchAll, 60_000)
     return () => clearInterval(pollerRef.current)
-  }, [fixtures, fetchAll])
+  }, [fetchAll])
 
   const onPredictionSaved = p => setPredictions(prev => ({ ...prev, [p.fixture_id]: p }))
   const onFixtureAdded = f => {
@@ -119,6 +117,8 @@ export default function Fixtures() {
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
   const tomorrowEnd = new Date(todayStart); tomorrowEnd.setDate(tomorrowEnd.getDate() + 2)
 
+  const live = filtered.filter(f => f.status === 'LIVE')
+
   const upcoming = filtered
     .filter(f => new Date(f.kickoff + 'Z') >= now && new Date(f.kickoff + 'Z') < tomorrowEnd)
     .sort((a, b) => new Date(a.kickoff + 'Z') - new Date(b.kickoff + 'Z'))
@@ -128,15 +128,13 @@ export default function Fixtures() {
     .sort((a, b) => new Date(a.kickoff + 'Z') - new Date(b.kickoff + 'Z'))
 
   const past = filtered
-    .filter(f => new Date(f.kickoff + 'Z') < now)
+    .filter(f => new Date(f.kickoff + 'Z') < now && f.status !== 'LIVE')
     .sort((a, b) => new Date(b.kickoff + 'Z') - new Date(a.kickoff + 'Z'))
 
   const futureGrouped = groupByStage(future)
   const futureKeys = sortStageKeys(Object.keys(futureGrouped))
   const pastGrouped = groupByStage(past)
   const pastKeys = sortStageKeys(Object.keys(pastGrouped))
-
-  const hasLive = fixtures.some(f => f.status === 'LIVE')
 
   const cardProps = { isAdmin: user?.is_admin, onPredictionSaved, onScoreSet, onFixtureUpdated, onFixtureDeleted }
 
@@ -155,12 +153,6 @@ export default function Fixtures() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fixtures</h1>
-          {hasLive && (
-            <span className="flex items-center gap-1 text-xs font-bold text-red-600">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
-              Live
-            </span>
-          )}
         </div>
         {user?.is_admin && (
           <div className="flex gap-2">
@@ -200,6 +192,21 @@ export default function Fixtures() {
         <span>{lastRefresh && `Updated ${lastRefresh.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}</span>
         <button onClick={fetchAll} className="hover:text-gray-600 dark:hover:text-gray-300">↻ Refresh</button>
       </div>
+
+      {/* Live matches */}
+      {live.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
+            Live now
+          </h2>
+          <div className="space-y-3">
+            {live.map(f => (
+              <FixtureCard key={f.id} fixture={f} prediction={predictions[f.id]} showLineups={false} {...cardProps} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Upcoming — today + tomorrow */}
       <section className="mb-8">

@@ -102,6 +102,7 @@ class FixtureOut(BaseModel):
     duration: Optional[str]
     home_penalties: Optional[int]
     away_penalties: Optional[int]
+    minute: Optional[int] = None
 
 
 # ── Predictions ───────────────────────────────────────────────────────────────

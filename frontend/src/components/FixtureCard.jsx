@@ -82,11 +82,11 @@ function TeamCrest({ src, alt }) {
   return <img src={src} alt={alt} className="w-6 h-6 object-contain" onError={e => e.target.style.display = 'none'} />
 }
 
-function LiveBadge() {
+function LiveBadge({ minute }) {
   return (
     <span className="flex items-center gap-1 text-xs font-bold text-red-600">
       <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
-      LIVE
+      {minute != null ? `${minute}'` : 'Live'}
     </span>
   )
 }
@@ -252,7 +252,7 @@ export default function FixtureCard({
             )}
           </span>
           <div className="flex items-center gap-2">
-            {live && <LiveBadge />}
+            {live && <LiveBadge minute={fixture.minute} />}
             {finished && (
               <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">
                 {fixture.duration === 'PENALTY_SHOOTOUT' || fixture.duration === 'EXTRA_TIME' ? 'AET' : 'FT'}
