@@ -169,39 +169,46 @@ export default function BracketModal() {
             {/* Left column — semi-finals split into two equal halves */}
             <div className="flex-1 flex flex-col">
               <div className="flex-1 flex flex-col justify-center gap-2 pb-2">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Semi-final 1</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Semi-final 1</p>
                 <TeamTypeahead value={semi1A} onChange={updateSemi1A} options={teams} placeholder="Team A" />
                 <TeamTypeahead value={semi1B} onChange={updateSemi1B} options={teams} placeholder="Team B" />
               </div>
               <div className="flex-1 flex flex-col justify-center gap-2 pt-2">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Semi-final 2</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Semi-final 2</p>
                 <TeamTypeahead value={semi2A} onChange={updateSemi2A} options={teams} placeholder="Team A" />
                 <TeamTypeahead value={semi2B} onChange={updateSemi2B} options={teams} placeholder="Team B" />
               </div>
             </div>
 
-            {/* Center column — single horizontal line to midpoint of finalist fields */}
+            {/* Center column — bracket connector: two horizontals, one vertical, one exit line */}
             <div className="w-16 shrink-0">
               <svg width="100%" height="100%" fill="none" className="text-gray-300 dark:text-gray-600">
-                <line x1="0%" y1="50%" x2="100%" y2="50%" stroke="currentColor" strokeWidth="2" />
+                <line x1="0%" y1="25%" x2="80%" y2="25%" stroke="currentColor" strokeWidth="2" />
+                <line x1="0%" y1="75%" x2="80%" y2="75%" stroke="currentColor" strokeWidth="2" />
+                <line x1="80%" y1="25%" x2="80%" y2="75%" stroke="currentColor" strokeWidth="2" />
+                <line x1="80%" y1="50%" x2="100%" y2="50%" stroke="currentColor" strokeWidth="2" />
               </svg>
             </div>
 
-            {/* Right column — both finalists centred around the midpoint line */}
-            <div className="flex-1 flex flex-col justify-center gap-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Final</p>
-              <TeamTypeahead
-                value={finalist1}
-                onChange={setFinalist1}
-                options={semi1Teams}
-                placeholder="Finalist from Semi 1"
-              />
-              <TeamTypeahead
-                value={finalist2}
-                onChange={setFinalist2}
-                options={semi2Teams}
-                placeholder="Finalist from Semi 2"
-              />
+            {/* Right column — two equal halves, one per finalist, with gap after the exit line */}
+            <div className="flex-1 flex flex-col pl-6">
+              <div className="flex-1 flex flex-col justify-center gap-2 pb-2">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Final</p>
+                <TeamTypeahead
+                  value={finalist1}
+                  onChange={setFinalist1}
+                  options={semi1Teams}
+                  placeholder="Finalist from Semi 1"
+                />
+              </div>
+              <div className="flex-1 flex flex-col justify-center gap-2 pt-2">
+                <TeamTypeahead
+                  value={finalist2}
+                  onChange={setFinalist2}
+                  options={semi2Teams}
+                  placeholder="Finalist from Semi 2"
+                />
+              </div>
             </div>
           </div>
 
