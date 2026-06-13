@@ -262,21 +262,21 @@ function BracketSection() {
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 space-y-3">
             <div>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">Semi-final 1</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1 uppercase tracking-wider">Semi-final 1</p>
               <p className="text-sm font-medium text-gray-900 dark:text-white">
                 {bracket.semi1_a} <span className="text-gray-400 dark:text-gray-500 font-normal">vs</span> {bracket.semi1_b}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">Semi-final 2</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1 uppercase tracking-wider">Semi-final 2</p>
               <p className="text-sm font-medium text-gray-900 dark:text-white">
                 {bracket.semi2_a} <span className="text-gray-400 dark:text-gray-500 font-normal">vs</span> {bracket.semi2_b}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">Finalists</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1 uppercase tracking-wider">Finals</p>
               <p className="text-sm font-medium text-gray-900 dark:text-white">
-                {bracket.finalist1} <span className="text-gray-400 dark:text-gray-500 font-normal">&</span> {bracket.finalist2}
+                {bracket.finalist1} <span className="text-gray-400 dark:text-gray-500 font-normal">vs</span> {bracket.finalist2}
               </p>
             </div>
           </div>

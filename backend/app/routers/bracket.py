@@ -9,17 +9,9 @@ from app.schemas import BracketPredictionIn, BracketPredictionOut, BracketTeam
 
 router = APIRouter(prefix="/bracket", tags=["bracket"])
 
-# NOTE: Every endpoint below is admin-gated while this is a test feature.
-# Removing the `if not user.is_admin: raise HTTPException(403, ...)` guard from
-# each endpoint un-gates the bonus bracket feature for ALL users.
-
 
 @router.get("/teams", response_model=list[BracketTeam])
 async def list_teams(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    # Admin-only while in test (remove this guard to un-gate for all users).
-    if not user.is_admin:
-        raise HTTPException(status_code=403, detail="Admin only")
-
     result = await db.execute(select(Fixture).where(Fixture.competition.contains("World Cup")))
     teams: dict[str, str | None] = {}
     for f in result.scalars():
@@ -43,10 +35,6 @@ async def submit_bracket(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Admin-only while in test (remove this guard to un-gate for all users).
-    if not user.is_admin:
-        raise HTTPException(status_code=403, detail="Admin only")
-
     existing = await db.execute(select(BracketPrediction).where(BracketPrediction.user_id == user.id))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="You've already submitted your bracket — it's locked")

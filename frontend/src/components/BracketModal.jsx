@@ -2,16 +2,6 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import api from '../api/client'
 
-// ---------------------------------------------------------------------------
-// Bonus bracket prediction onboarding popup.
-//
-// GATING: shown only when the logged-in user is an admin AND has not yet
-// submitted a bracket (GET /bracket/me returns null). Non-admins never see it.
-//
-// >>> TO UN-GATE FOR FULL ROLLOUT: delete the `if (!user.is_admin) return`
-//     guard below (the line marked ADMIN GATE) so every user is prompted.
-// ---------------------------------------------------------------------------
-
 // Typeahead field: searches the WC team list and shows each option's flag
 // (crest) next to the team name in UPPERCASE.
 function TeamTypeahead({ value, onChange, options, placeholder, disabled = false }) {
@@ -99,8 +89,6 @@ export default function BracketModal() {
 
   useEffect(() => {
     if (!user) return
-    // ADMIN GATE — remove this line to roll out to all users.
-    if (!user.is_admin) return
 
     let cancelled = false
     ;(async () => {
