@@ -180,42 +180,28 @@ export default function BracketModal() {
               </div>
             </div>
 
-            {/* Center column — SVG bracket: lines from semis (left) meet vertical bar, exit right to finalists */}
+            {/* Center column — single horizontal line to midpoint of finalist fields */}
             <div className="w-16 shrink-0">
               <svg width="100%" height="100%" fill="none" className="text-gray-300 dark:text-gray-600">
-                {/* From SF1 midpoint (y=25%) left edge → center bar */}
-                <line x1="0%" y1="25%" x2="50%" y2="25%" stroke="currentColor" strokeWidth="2" />
-                {/* From SF2 midpoint (y=75%) left edge → center bar */}
-                <line x1="0%" y1="75%" x2="50%" y2="75%" stroke="currentColor" strokeWidth="2" />
-                {/* Vertical bar at center connecting SF1 and SF2 midpoints */}
-                <line x1="50%" y1="25%" x2="50%" y2="75%" stroke="currentColor" strokeWidth="2" />
-                {/* From center bar → right edge toward Finalist 1 (y=25%) */}
-                <line x1="50%" y1="25%" x2="100%" y2="25%" stroke="currentColor" strokeWidth="2" />
-                {/* From center bar → right edge toward Finalist 2 (y=75%) */}
-                <line x1="50%" y1="75%" x2="100%" y2="75%" stroke="currentColor" strokeWidth="2" />
+                <line x1="0%" y1="50%" x2="100%" y2="50%" stroke="currentColor" strokeWidth="2" />
               </svg>
             </div>
 
-            {/* Right column — finalists split into two equal halves matching SF heights */}
-            <div className="flex-1 flex flex-col">
-              <div className="flex-1 flex flex-col justify-center gap-2 pb-2">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Final</p>
-                <TeamTypeahead
-                  value={finalist1}
-                  onChange={setFinalist1}
-                  options={semi1Teams}
-                  placeholder="Finalist from Semi 1"
-                />
-              </div>
-              <div className="flex-1 flex flex-col justify-center gap-2 pt-2">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider invisible">Final</p>
-                <TeamTypeahead
-                  value={finalist2}
-                  onChange={setFinalist2}
-                  options={semi2Teams}
-                  placeholder="Finalist from Semi 2"
-                />
-              </div>
+            {/* Right column — both finalists centred around the midpoint line */}
+            <div className="flex-1 flex flex-col justify-center gap-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Final</p>
+              <TeamTypeahead
+                value={finalist1}
+                onChange={setFinalist1}
+                options={semi1Teams}
+                placeholder="Finalist from Semi 1"
+              />
+              <TeamTypeahead
+                value={finalist2}
+                onChange={setFinalist2}
+                options={semi2Teams}
+                placeholder="Finalist from Semi 2"
+              />
             </div>
           </div>
 
