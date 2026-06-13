@@ -230,18 +230,26 @@ async def list_competitions(user: User = Depends(get_current_user)):
     return [{"code": k, "name": v} for k, v in COMPETITIONS.items()]
 
 
-@router.delete("/competition/{competition_code}")
+@router.get("/synced-competitions")
+async def synced_competitions(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    result = await db.execute(select(Fixture.competition).distinct())
+    names = sorted(r[0] for r in result.all() if r[0])
+    return names
+
+
+@router.delete("/competition")
 async def unsync_competition(
-    competition_code: str,
+    name: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
-    if competition_code not in COMPETITIONS:
-        raise HTTPException(status_code=400, detail=f"Unknown competition code. Valid: {list(COMPETITIONS)}")
-    competition_name = COMPETITIONS[competition_code]
-    result = await db.execute(select(Fixture).where(Fixture.competition == competition_name))
+    if not name or not name.strip():
+        raise HTTPException(status_code=400, detail="Competition name required")
+    result = await db.execute(select(Fixture).where(Fixture.competition == name))
     fixtures = result.scalars().all()
     fixture_ids = [f.id for f in fixtures]
     deleted_predictions = 0

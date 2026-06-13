@@ -10,11 +10,20 @@ export default function AdminSyncFixtures({ onSyncDone }) {
   const [unsyncing, setUnsyncing] = useState(false)
   const [confirmUnsync, setConfirmUnsync] = useState(false)
   const [unsyncResult, setUnsyncResult] = useState(null)
+  const [syncedCompetitions, setSyncedCompetitions] = useState([])
+  const [unsyncSelected, setUnsyncSelected] = useState('')
 
   useEffect(() => {
     api.get('/fixtures/competitions').then(r => {
       setCompetitions(r.data)
     })
+  }, [])
+
+  useEffect(() => {
+    api.get('/fixtures/synced-competitions').then(r => {
+      setSyncedCompetitions(r.data || [])
+      if (r.data && r.data.length > 0) setUnsyncSelected(r.data[0])
+    }).catch(() => {})
   }, [])
 
   const sync = async () => {
@@ -37,7 +46,7 @@ export default function AdminSyncFixtures({ onSyncDone }) {
     setUnsyncResult(null)
     setError('')
     try {
-      const { data } = await api.delete(`/fixtures/competition/${selected}`)
+      const { data } = await api.delete('/fixtures/competition', { params: { name: unsyncSelected } })
       setUnsyncResult(data)
       setConfirmUnsync(false)
       if (onSyncDone) onSyncDone()
@@ -72,33 +81,46 @@ export default function AdminSyncFixtures({ onSyncDone }) {
           {syncing ? 'Syncing…' : 'Sync fixtures'}
         </button>
 
-        {!confirmUnsync ? (
-          <button
-            onClick={() => { setConfirmUnsync(true); setResult(null); setUnsyncResult(null) }}
-            disabled={syncing || unsyncing}
-            className="border border-red-400 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-medium px-4 py-2 rounded-lg transition disabled:opacity-50"
-          >
-            Unsync
-          </button>
-        ) : (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-red-600 dark:text-red-400">
-              Delete all {competitions.find(c => c.code === selected)?.name ?? selected} fixtures + predictions?
-            </span>
-            <button
-              onClick={unsync}
-              disabled={unsyncing}
-              className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50"
-            >
-              {unsyncing ? 'Deleting…' : 'Confirm delete'}
-            </button>
-            <button
-              onClick={() => setConfirmUnsync(false)}
-              className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1.5"
-            >
-              Cancel
-            </button>
-          </div>
+        {syncedCompetitions.length > 0 && (
+          !confirmUnsync ? (
+            <>
+              <select
+                value={unsyncSelected}
+                onChange={e => { setUnsyncSelected(e.target.value); setConfirmUnsync(false) }}
+                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              >
+                {syncedCompetitions.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => { setConfirmUnsync(true); setResult(null); setUnsyncResult(null) }}
+                disabled={syncing || unsyncing}
+                className="border border-red-400 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-medium px-4 py-2 rounded-lg transition disabled:opacity-50"
+              >
+                Unsync
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-red-600 dark:text-red-400">
+                Delete all {unsyncSelected} fixtures + predictions?
+              </span>
+              <button
+                onClick={unsync}
+                disabled={unsyncing}
+                className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+              >
+                {unsyncing ? 'Deleting…' : 'Confirm delete'}
+              </button>
+              <button
+                onClick={() => setConfirmUnsync(false)}
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1.5"
+              >
+                Cancel
+              </button>
+            </div>
+          )
         )}
       </div>
 
