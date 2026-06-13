@@ -230,6 +230,33 @@ async def list_competitions(user: User = Depends(get_current_user)):
     return [{"code": k, "name": v} for k, v in COMPETITIONS.items()]
 
 
+@router.delete("/competition/{competition_code}")
+async def unsync_competition(
+    competition_code: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    if competition_code not in COMPETITIONS:
+        raise HTTPException(status_code=400, detail=f"Unknown competition code. Valid: {list(COMPETITIONS)}")
+    competition_name = COMPETITIONS[competition_code]
+    result = await db.execute(select(Fixture).where(Fixture.competition == competition_name))
+    fixtures = result.scalars().all()
+    fixture_ids = [f.id for f in fixtures]
+    deleted_predictions = 0
+    if fixture_ids:
+        pred_result = await db.execute(select(Prediction).where(Prediction.fixture_id.in_(fixture_ids)))
+        preds = pred_result.scalars().all()
+        for p in preds:
+            await db.delete(p)
+        deleted_predictions = len(preds)
+    for f in fixtures:
+        await db.delete(f)
+    await db.commit()
+    return {"deleted_fixtures": len(fixtures), "deleted_predictions": deleted_predictions}
+
+
 @router.delete("/{fixture_id}")
 async def delete_fixture(
     fixture_id: str,
