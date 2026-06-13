@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import api from './api/client'
 import Navbar from './components/Navbar'
+import BracketModal from './components/BracketModal'
 import Login from './pages/Login'
 import AuthCallback from './pages/AuthCallback'
 // Register and email/password login removed — Google OAuth only
@@ -37,7 +38,7 @@ function TeamNameModal() {
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-gray-800 rounded-2xl px-8 py-8 max-w-sm w-full shadow-xl">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Choose your team name</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Enter your team name</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">This is how you'll appear on leaderboards and predictions.</p>
         <form onSubmit={handleSave}>
           <input
@@ -77,10 +78,14 @@ function PublicRoute({ children }) {
 
 function Layout({ children }) {
   const { user } = useAuth()
+  // Onboarding sequence: team-name popup FIRST. Only once the user has a
+  // team_name do we surface the (admin-gated) bonus bracket popup.
+  const needsTeamName = user?.team_name == null
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
-      {user?.team_name == null && <TeamNameModal />}
+      {needsTeamName && <TeamNameModal />}
+      {!needsTeamName && <BracketModal />}
       <main className="max-w-4xl mx-auto px-4 py-8">{children}</main>
     </div>
   )

@@ -98,3 +98,18 @@ class Prediction(Base):
 
     user: Mapped["User"] = relationship(back_populates="predictions")
     fixture: Mapped["Fixture"] = relationship(back_populates="predictions")
+
+
+class BracketPrediction(Base):
+    __tablename__ = "bracket_predictions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), unique=True)  # one bracket per user
+    semi1_a: Mapped[str] = mapped_column(String(100))
+    semi1_b: Mapped[str] = mapped_column(String(100))
+    semi2_a: Mapped[str] = mapped_column(String(100))
+    semi2_b: Mapped[str] = mapped_column(String(100))
+    finalist1: Mapped[str] = mapped_column(String(100))
+    finalist2: Mapped[str] = mapped_column(String(100))
+    points: Mapped[float | None] = mapped_column(Float, nullable=True)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

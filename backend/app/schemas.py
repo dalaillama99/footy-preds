@@ -136,6 +136,36 @@ class LeaderboardEntry(BaseModel):
     exact_count: int
     correct_count: int
     real_name: Optional[str] = None
+    bracket_bonus: Optional[float] = None
+
+
+# ── Bonus bracket prediction ──────────────────────────────────────────────────
+
+class BracketTeam(BaseModel):
+    name: str
+    crest: Optional[str] = None
+
+
+class BracketPredictionIn(BaseModel):
+    semi1_a: str
+    semi1_b: str
+    semi2_a: str
+    semi2_b: str
+    finalist1: str
+    finalist2: str
+
+
+class BracketPredictionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    semi1_a: str
+    semi1_b: str
+    semi2_a: str
+    semi2_b: str
+    finalist1: str
+    finalist2: str
+    points: Optional[float] = None
+    submitted_at: datetime
 
 
 # ── League predictions (post-kickoff, visible to all members) ─────────────────

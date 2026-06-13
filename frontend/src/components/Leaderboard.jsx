@@ -18,6 +18,14 @@ export default function Leaderboard({ entries }) {
     }
   }
 
+  // Map a bracket_bonus point value to its subtle leaderboard annotation.
+  const bracketLabel = (bonus) => {
+    if (bonus === 5) return '+5 finals'
+    if (bonus === 10) return '+10 semis'
+    if (bonus === 15) return '+15 finals & semis'
+    return `+${bonus}`
+  }
+
   const toggle = (userId) => setExpanded(prev => {
     const next = new Set(prev)
     if (next.has(userId)) next.delete(userId)
@@ -61,6 +69,9 @@ export default function Leaderboard({ entries }) {
                 <td className="px-1.5 sm:px-3 py-3 sm:py-3.5 text-right text-gray-500 dark:text-gray-400">{e.scored_count}</td>
                 <td className="px-2 sm:px-4 py-3 sm:py-3.5 text-right font-bold text-gray-900 dark:text-white">
                   {e.total_points % 1 === 0 ? e.total_points.toFixed(0) : e.total_points.toFixed(2)}
+                  {e.bracket_bonus != null && (
+                    <span className="ml-1 text-[10px] sm:text-xs font-normal text-gray-400 dark:text-gray-500">({bracketLabel(e.bracket_bonus)})</span>
+                  )}
                 </td>
               </tr>
               {expanded.has(e.user_id) && (

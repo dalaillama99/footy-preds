@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Fixture, League, LeagueMember, Prediction, User
+from app.models import BracketPrediction, Fixture, League, LeagueMember, Prediction, User
 from app.schemas import (
     FixturePredictionsOut, LeagueCreate, LeagueJoin, LeagueOut, LeagueSettingsUpdate,
     LeaderboardEntry, LeagueMemberOut, MemberPredictionOut,
@@ -150,6 +150,17 @@ async def leaderboard(
         scored = sum(1 for p in preds if p.points is not None)
         exact = sum(1 for p in preds if p.points is not None and p.points >= 3)
         correct = sum(1 for p in preds if p.points is not None and 1.5 <= p.points < 3)
+
+        # Bonus bracket points are global (same across all the user's leagues):
+        # add the scored bracket bonus into the displayed total.
+        bracket = (await db.execute(
+            select(BracketPrediction).where(BracketPrediction.user_id == m.user_id)
+        )).scalar_one_or_none()
+        bracket_bonus = None
+        if bracket is not None and bracket.points is not None:
+            bracket_bonus = bracket.points
+            total += bracket.points
+
         entries.append(LeaderboardEntry(
             user_id=m.user_id,
             username=_display_name(m.user),
@@ -159,6 +170,7 @@ async def leaderboard(
             exact_count=exact,
             correct_count=correct,
             real_name=(m.user.username if user.is_admin else None),
+            bracket_bonus=bracket_bonus,
         ))
 
     return sorted(entries, key=lambda e: e.total_points, reverse=True)
