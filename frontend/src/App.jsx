@@ -81,7 +81,7 @@ function Layout({ children }) {
   const { user } = useAuth()
   // Onboarding sequence: team-name popup FIRST. Only once the user has a
   // team_name do we surface the (admin-gated) bonus bracket popup.
-  const needsTeamName = user?.team_name == null
+  const needsTeamName = !user?.team_name
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />

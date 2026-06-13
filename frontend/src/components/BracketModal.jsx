@@ -164,40 +164,97 @@ export default function BracketModal() {
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
-          {/* Semi-final 1 */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Semi-final 1</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {/* Desktop: horizontal bracket layout */}
+          <div className="hidden md:flex gap-2 items-stretch min-h-[180px]">
+            {/* Left column — semi-finals */}
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Semi-final 1</p>
               <TeamTypeahead value={semi1A} onChange={updateSemi1A} options={teams} placeholder="Team A" />
-              <TeamTypeahead value={semi1B} onChange={updateSemi1B} options={teams} placeholder="Team B" />
+              <div className="mt-2">
+                <TeamTypeahead value={semi1B} onChange={updateSemi1B} options={teams} placeholder="Team B" />
+              </div>
+              <div className="mt-6">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Semi-final 2</p>
+                <TeamTypeahead value={semi2A} onChange={updateSemi2A} options={teams} placeholder="Team A" />
+                <div className="mt-2">
+                  <TeamTypeahead value={semi2B} onChange={updateSemi2B} options={teams} placeholder="Team B" />
+                </div>
+              </div>
+            </div>
+
+            {/* Center column — SVG connector lines */}
+            <div className="w-12 shrink-0">
+              <svg width="100%" height="100%" className="text-gray-300 dark:text-gray-600 h-full" fill="none">
+                {/* SF1 midpoint horizontal line (left → right at 25%) */}
+                <line x1="0%" y1="25%" x2="100%" y2="25%" stroke="currentColor" strokeWidth="2" />
+                {/* SF2 midpoint horizontal line (left → right at 75%) */}
+                <line x1="0%" y1="75%" x2="100%" y2="75%" stroke="currentColor" strokeWidth="2" />
+                {/* Vertical line on right edge from 25% → 75% */}
+                <line x1="100%" y1="25%" x2="100%" y2="75%" stroke="currentColor" strokeWidth="2" />
+                {/* Horizontal line from right edge at 50% → left (going to finalists) */}
+                <line x1="100%" y1="50%" x2="0%" y2="50%" stroke="currentColor" strokeWidth="2" />
+              </svg>
+            </div>
+
+            {/* Right column — final */}
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Final</p>
+              <div className="flex flex-col justify-center h-full">
+                <TeamTypeahead
+                  value={finalist1}
+                  onChange={setFinalist1}
+                  options={semi1Teams}
+                  placeholder="Finalist from Semi 1"
+                />
+                <div className="mt-2">
+                  <TeamTypeahead
+                    value={finalist2}
+                    onChange={setFinalist2}
+                    options={semi2Teams}
+                    placeholder="Finalist from Semi 2"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Semi-final 2 */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Semi-final 2</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <TeamTypeahead value={semi2A} onChange={updateSemi2A} options={teams} placeholder="Team A" />
-              <TeamTypeahead value={semi2B} onChange={updateSemi2B} options={teams} placeholder="Team B" />
+          {/* Mobile fallback — stacked blocks */}
+          <div className="md:hidden space-y-5">
+            {/* Semi-final 1 */}
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Semi-final 1</p>
+              <div className="grid grid-cols-2 gap-2">
+                <TeamTypeahead value={semi1A} onChange={updateSemi1A} options={teams} placeholder="Team A" />
+                <TeamTypeahead value={semi1B} onChange={updateSemi1B} options={teams} placeholder="Team B" />
+              </div>
             </div>
-          </div>
 
-          {/* Final — finalist 1 from semi 1, finalist 2 from semi 2 */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Final</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <TeamTypeahead
-                value={finalist1}
-                onChange={setFinalist1}
-                options={semi1Teams}
-                placeholder="Finalist from Semi 1"
-              />
-              <TeamTypeahead
-                value={finalist2}
-                onChange={setFinalist2}
-                options={semi2Teams}
-                placeholder="Finalist from Semi 2"
-              />
+            {/* Semi-final 2 */}
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Semi-final 2</p>
+              <div className="grid grid-cols-2 gap-2">
+                <TeamTypeahead value={semi2A} onChange={updateSemi2A} options={teams} placeholder="Team A" />
+                <TeamTypeahead value={semi2B} onChange={updateSemi2B} options={teams} placeholder="Team B" />
+              </div>
+            </div>
+
+            {/* Final */}
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Final</p>
+              <div className="grid grid-cols-2 gap-2">
+                <TeamTypeahead
+                  value={finalist1}
+                  onChange={setFinalist1}
+                  options={semi1Teams}
+                  placeholder="Finalist from Semi 1"
+                />
+                <TeamTypeahead
+                  value={finalist2}
+                  onChange={setFinalist2}
+                  options={semi2Teams}
+                  placeholder="Finalist from Semi 2"
+                />
+              </div>
             </div>
           </div>
 
