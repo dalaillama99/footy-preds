@@ -48,7 +48,7 @@ function TeamNameModal() {
             onChange={e => setName(e.target.value)}
             maxLength={50}
             className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 mb-3"
-            placeholder="e.g. Team Arsenal"
+            placeholder=""
             autoFocus
           />
           {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
