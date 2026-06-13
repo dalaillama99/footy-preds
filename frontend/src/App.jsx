@@ -15,7 +15,8 @@ import MyPredictions from './pages/MyPredictions'
 
 function TeamNameModal() {
   const { user, setUser } = useAuth()
-  const [name, setName] = useState(user?.username || '')
+  // Start empty — users must actively enter a team name (no Google-name prefill).
+  const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -53,8 +54,8 @@ function TeamNameModal() {
           {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
           <button
             type="submit"
-            disabled={saving}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition disabled:opacity-50"
+            disabled={saving || !name.trim()}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? '…' : 'Set team name'}
           </button>
