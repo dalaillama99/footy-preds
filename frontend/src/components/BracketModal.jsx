@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import api from '../api/client'
 
@@ -87,6 +87,15 @@ export default function BracketModal() {
   const [finalist1, setFinalist1] = useState('')
   const [finalist2, setFinalist2] = useState('')
 
+  const bracketRef = useRef(null)
+  const sf1ARef = useRef(null)
+  const sf1BRef = useRef(null)
+  const sf2ARef = useRef(null)
+  const sf2BRef = useRef(null)
+  const fin1Ref = useRef(null)
+  const fin2Ref = useRef(null)
+  const [svgLines, setSvgLines] = useState(null)
+
   useEffect(() => {
     if (!user) return
     // ADMIN GATE — remove this line to roll out to all users.
@@ -108,6 +117,39 @@ export default function BracketModal() {
     })()
     return () => { cancelled = true }
   }, [user])
+
+  useLayoutEffect(() => {
+    if (!show || !bracketRef.current) return
+    const measure = () => {
+      const c = bracketRef.current.getBoundingClientRect()
+      if (c.height === 0) return
+      const midY = (ref) => {
+        if (!ref.current) return 0
+        const r = ref.current.getBoundingClientRect()
+        return ((r.top + r.bottom) / 2 - c.top) / c.height * 100
+      }
+      const rightPct = (ref) => {
+        if (!ref.current) return 0
+        const r = ref.current.getBoundingClientRect()
+        return (r.right - c.left) / c.width * 100
+      }
+      const leftPct = (ref) => {
+        if (!ref.current) return 0
+        const r = ref.current.getBoundingClientRect()
+        return (r.left - c.left) / c.width * 100
+      }
+      const sf1Y = (midY(sf1ARef) + midY(sf1BRef)) / 2
+      const sf2Y = (midY(sf2ARef) + midY(sf2BRef)) / 2
+      const finalY = (midY(fin1Ref) + midY(fin2Ref)) / 2
+      const leftEdge = rightPct(sf1BRef)
+      const rightEdge = leftPct(fin1Ref)
+      const bracketX = (leftEdge + rightEdge) / 2
+      setSvgLines({ sf1Y, sf2Y, finalY, leftEdge, rightEdge, bracketX })
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [show])
 
   if (!show) return null
 
@@ -155,49 +197,57 @@ export default function BracketModal() {
       <div className="bg-white dark:bg-gray-800 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[92vh] overflow-y-auto">
         <div className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-700">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">🏆 Bonus bracket prediction</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-            A bonus, long-range prediction. Nail both <strong>semi-final matchups</strong> for <strong>5 pts</strong>;
-            get both <strong>finalists</strong> correct for <strong>5 pts</strong>;
-            get <strong>both right</strong> for <strong>15 pts</strong> total. Order of semis doesn't matter.
-            Points are added to your league standings at the end of the tournament.
-          </p>
+          <div className="text-sm text-gray-500 dark:text-gray-400 space-y-3">
+            <p>A bonus, long-range prediction — enter now and it's locked in for good. 🔒 Points land in your league standings at the end of the tournament.</p>
+            <ul className="space-y-1">
+              <li>🎯 Nail both semi-final matchups → <strong>5 pts</strong></li>
+              <li>🏆 Get both finalists correct → <strong>5 pts</strong></li>
+              <li>⚡ Get both phases right → <strong>15 pts</strong> total</li>
+            </ul>
+            <p>Work out the bracket before predicting with{' '}
+              <a
+                href="https://www.theguardian.com/football/ng-interactive/2026/jun/04/bracketology-predict-a-path-to-world-cup-victory"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-green-500 hover:underline"
+              >Guardian Bracketology</a>.
+            </p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
           {/* Horizontal bracket layout — all screen sizes */}
-          <div className="flex gap-0 items-stretch min-h-[240px]">
+          <div ref={bracketRef} className="relative flex gap-8 items-stretch min-h-[240px]">
             {/* Left column — semi-finals */}
             <div className="flex-1 flex flex-col">
               <div className="flex-1 flex flex-col justify-center gap-2 pb-2">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Semi-final 1</p>
-                <TeamTypeahead value={semi1A} onChange={updateSemi1A} options={teams} placeholder="" />
-                <TeamTypeahead value={semi1B} onChange={updateSemi1B} options={teams} placeholder="" />
+                <div ref={sf1ARef}><TeamTypeahead value={semi1A} onChange={updateSemi1A} options={teams} placeholder="" /></div>
+                <div ref={sf1BRef}><TeamTypeahead value={semi1B} onChange={updateSemi1B} options={teams} placeholder="" /></div>
               </div>
               <div className="flex-1 flex flex-col justify-center gap-2 pt-2">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Semi-final 2</p>
-                <TeamTypeahead value={semi2A} onChange={updateSemi2A} options={teams} placeholder="" />
-                <TeamTypeahead value={semi2B} onChange={updateSemi2B} options={teams} placeholder="" />
+                <div ref={sf2ARef}><TeamTypeahead value={semi2A} onChange={updateSemi2A} options={teams} placeholder="" /></div>
+                <div ref={sf2BRef}><TeamTypeahead value={semi2B} onChange={updateSemi2B} options={teams} placeholder="" /></div>
               </div>
-            </div>
-
-            {/* Center SVG — bracket connector */}
-            <div className="w-24 shrink-0">
-              <svg width="100%" height="100%" fill="none" className="text-gray-300 dark:text-gray-600">
-                <line x1="0%" y1="33%" x2="85%" y2="33%" stroke="currentColor" strokeWidth="2" />
-                <line x1="0%" y1="67%" x2="85%" y2="67%" stroke="currentColor" strokeWidth="2" />
-                <line x1="85%" y1="33%" x2="85%" y2="67%" stroke="currentColor" strokeWidth="2" />
-                <line x1="85%" y1="50%" x2="100%" y2="50%" stroke="currentColor" strokeWidth="2" />
-              </svg>
             </div>
 
             {/* Right column — finalists */}
-            <div className="flex-1 flex flex-col justify-center gap-8 pl-6">
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center mb-2">Final</p>
-                <TeamTypeahead value={finalist1} onChange={setFinalist1} options={semi1Teams} placeholder="" />
-              </div>
-              <TeamTypeahead value={finalist2} onChange={setFinalist2} options={semi2Teams} placeholder="" />
+            <div className="flex-1 flex flex-col justify-center gap-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Final</p>
+              <div ref={fin1Ref}><TeamTypeahead value={finalist1} onChange={setFinalist1} options={semi1Teams} placeholder="" /></div>
+              <div ref={fin2Ref}><TeamTypeahead value={finalist2} onChange={setFinalist2} options={semi2Teams} placeholder="" /></div>
             </div>
+
+            {/* Absolute SVG overlay — lines drawn from measured input positions */}
+            {svgLines && (
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" fill="none">
+                <line x1={`${svgLines.leftEdge}%`} y1={`${svgLines.sf1Y}%`} x2={`${svgLines.bracketX}%`} y2={`${svgLines.sf1Y}%`} stroke="#9CA3AF" strokeWidth="2" />
+                <line x1={`${svgLines.leftEdge}%`} y1={`${svgLines.sf2Y}%`} x2={`${svgLines.bracketX}%`} y2={`${svgLines.sf2Y}%`} stroke="#9CA3AF" strokeWidth="2" />
+                <line x1={`${svgLines.bracketX}%`} y1={`${svgLines.sf1Y}%`} x2={`${svgLines.bracketX}%`} y2={`${svgLines.sf2Y}%`} stroke="#9CA3AF" strokeWidth="2" />
+                <line x1={`${svgLines.bracketX}%`} y1={`${svgLines.finalY}%`} x2={`${svgLines.rightEdge}%`} y2={`${svgLines.finalY}%`} stroke="#9CA3AF" strokeWidth="2" />
+              </svg>
+            )}
           </div>
 
           {error && <p className="text-red-500 text-xs">{error}</p>}
