@@ -89,8 +89,6 @@ export default function BracketModal() {
 
   useEffect(() => {
     if (!user) return
-    // TEMP DISABLED — remove the next line to re-enable for admins.
-    return
     // ADMIN GATE — remove this line to roll out to all users.
     if (!user.is_admin) return
 
@@ -158,10 +156,10 @@ export default function BracketModal() {
         <div className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-700">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">🏆 Bonus bracket prediction</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-            A bonus, long-range prediction. Get both <strong>finalists</strong> correct for
-            <strong> 5 pts</strong>; nail both <strong>semi-final matchups</strong> for
-            <strong> 10 pts</strong> (up to <strong>15</strong>). Points are added to your
-            league standings at the end of the tournament — a fun twist for final-day upsets.
+            A bonus, long-range prediction. Nail both <strong>semi-final matchups</strong> for <strong>5 pts</strong>;
+            get both <strong>finalists</strong> correct for <strong>5 pts</strong>;
+            get <strong>both right</strong> for <strong>15 pts</strong> total. Order of semis doesn't matter.
+            Points are added to your league standings at the end of the tournament.
           </p>
         </div>
 

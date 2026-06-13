@@ -88,8 +88,9 @@ async def score_brackets(user: User = Depends(get_current_user), db: AsyncSessio
     """Admin action: compute points for ALL brackets from real World Cup fixtures.
 
     Scoring is order-independent everywhere (matchups compared as frozensets):
+      - +5 if predicted semi-final matchups match the actual two SEMI_FINALS.
       - +5 if predicted finalists match the actual FINAL pairing.
-      - +10 if predicted semi-final matchups match the actual two SEMI_FINALS.
+      - +5 bonus if BOTH of the above are correct (total 15).
     A stage only counts as "known" once its fixtures have both teams set.
     """
     # Admin-only while in test (remove this guard to un-gate for all users).
@@ -122,14 +123,20 @@ async def score_brackets(user: User = Depends(get_current_user), db: AsyncSessio
             b.points = None
             continue
         pts = 0.0
-        if finals_known:
-            pred_finalists = frozenset({b.finalist1, b.finalist2})
-            if pred_finalists == actual_finalists:
-                pts += 5
+        semis_correct = False
+        finals_correct = False
         if semis_known:
             pred_semis = {frozenset({b.semi1_a, b.semi1_b}), frozenset({b.semi2_a, b.semi2_b})}
             if pred_semis == actual_semis:
-                pts += 10
+                semis_correct = True
+                pts += 5
+        if finals_known:
+            pred_finalists = frozenset({b.finalist1, b.finalist2})
+            if pred_finalists == actual_finalists:
+                finals_correct = True
+                pts += 5
+        if semis_correct and finals_correct:
+            pts += 5  # bonus for nailing everything
         b.points = pts
 
     await db.commit()
