@@ -140,26 +140,24 @@ async def leaderboard(
     )
     all_members = members.scalars().all()
 
-    est_tz = zoneinfo.ZoneInfo("America/New_York")
-    today_est = datetime.now(est_tz).date()
-    today_start_utc = datetime(today_est.year, today_est.month, today_est.day, tzinfo=est_tz).astimezone(zoneinfo.ZoneInfo("UTC")).replace(tzinfo=None)
-    today_end_utc = today_start_utc + timedelta(days=1)
-
-    today_fix_q = select(Fixture).where(
-        Fixture.kickoff >= today_start_utc,
-        Fixture.kickoff < today_end_utc,
+    now_utc = datetime.utcnow()
+    recent_fix_q = select(Fixture).where(
+        Fixture.kickoff >= now_utc - timedelta(hours=8),
+        Fixture.kickoff <= now_utc - timedelta(hours=2),
     )
     if league.created_at is not None:
-        today_fix_q = today_fix_q.where(Fixture.kickoff >= league.created_at)
-    today_fixtures = (await db.execute(today_fix_q)).scalars().all()
+        recent_fix_q = recent_fix_q.where(Fixture.kickoff >= league.created_at)
+    recent_fixtures = (await db.execute(recent_fix_q)).scalars().all()
 
     show_rank_changes = False
-    if today_fixtures:
-        last_kickoff = max(f.kickoff for f in today_fixtures)
-        window_start = last_kickoff + timedelta(hours=2)
-        window_end = last_kickoff + timedelta(hours=8)
-        now_utc = datetime.utcnow()
-        show_rank_changes = window_start <= now_utc <= window_end
+    day_start_utc = None
+    if recent_fixtures:
+        last_kickoff = max(f.kickoff for f in recent_fixtures)
+        if now_utc <= last_kickoff + timedelta(hours=8):
+            show_rank_changes = True
+            est_tz = zoneinfo.ZoneInfo("America/New_York")
+            last_kickoff_est_date = last_kickoff.replace(tzinfo=zoneinfo.ZoneInfo("UTC")).astimezone(est_tz).date()
+            day_start_utc = datetime(last_kickoff_est_date.year, last_kickoff_est_date.month, last_kickoff_est_date.day, tzinfo=est_tz).astimezone(zoneinfo.ZoneInfo("UTC")).replace(tzinfo=None)
 
     entries = []
     for m in all_members:
@@ -203,7 +201,7 @@ async def leaderboard(
         for m in all_members:
             pred_q = select(Prediction).join(Fixture, Fixture.id == Prediction.fixture_id).where(
                 Prediction.user_id == m.user_id,
-                Fixture.kickoff < today_start_utc,
+                Fixture.kickoff < day_start_utc,
             )
             if league.created_at is not None:
                 pred_q = pred_q.where(Fixture.kickoff >= league.created_at)
