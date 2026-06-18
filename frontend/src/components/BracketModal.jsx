@@ -194,9 +194,9 @@ export default function BracketModal() {
           <div className="text-sm text-gray-500 dark:text-gray-400 space-y-3">
             <p>A long-range prediction for some bonus points at the end of the world cup! Enter now and it's locked in for good. 🔒 Points land in your league standings at the end of the tournament.</p>
             <ul className="space-y-1">
-              <li>🎯 Nail both semi-final matchups → <strong>5 pts</strong></li>
-              <li>🏆 Get both finalists correct → <strong>5 pts</strong></li>
-              <li>⚡ Get both phases right → <strong>15 pts</strong> total</li>
+              <li>🎯 Nail both semi-final matchups → <strong>3 pts</strong></li>
+              <li>🏆 Get both finalists correct → <strong>3 pts</strong></li>
+              <li>⚡ Get both phases right → <strong>9 pts</strong> total</li>
             </ul>
             <p>Work out the bracket before predicting with{' '}
               <a

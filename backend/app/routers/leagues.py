@@ -1,5 +1,6 @@
 import uuid
-from datetime import datetime, timezone
+import zoneinfo
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
@@ -137,9 +138,31 @@ async def leaderboard(
     members = await db.execute(
         select(LeagueMember).where(LeagueMember.league_id == league_id).options(selectinload(LeagueMember.user))
     )
+    all_members = members.scalars().all()
+
+    est_tz = zoneinfo.ZoneInfo("America/New_York")
+    today_est = datetime.now(est_tz).date()
+    today_start_utc = datetime(today_est.year, today_est.month, today_est.day, tzinfo=est_tz).astimezone(zoneinfo.ZoneInfo("UTC")).replace(tzinfo=None)
+    today_end_utc = today_start_utc + timedelta(days=1)
+
+    today_fix_q = select(Fixture).where(
+        Fixture.kickoff >= today_start_utc,
+        Fixture.kickoff < today_end_utc,
+    )
+    if league.created_at is not None:
+        today_fix_q = today_fix_q.where(Fixture.kickoff >= league.created_at)
+    today_fixtures = (await db.execute(today_fix_q)).scalars().all()
+
+    show_rank_changes = False
+    if today_fixtures:
+        last_kickoff = max(f.kickoff for f in today_fixtures)
+        window_start = last_kickoff + timedelta(hours=2)
+        window_end = last_kickoff + timedelta(hours=8)
+        now_utc = datetime.utcnow()
+        show_rank_changes = window_start <= now_utc <= window_end
 
     entries = []
-    for m in members.scalars():
+    for m in all_members:
         pred_q = select(Prediction).join(Fixture, Fixture.id == Prediction.fixture_id).where(
             Prediction.user_id == m.user_id
         )
@@ -173,7 +196,36 @@ async def leaderboard(
             bracket_bonus=bracket_bonus,
         ))
 
-    return sorted(entries, key=lambda e: e.total_points, reverse=True)
+    sorted_entries = sorted(entries, key=lambda e: e.total_points, reverse=True)
+
+    if show_rank_changes:
+        prev_entries = []
+        for m in all_members:
+            pred_q = select(Prediction).join(Fixture, Fixture.id == Prediction.fixture_id).where(
+                Prediction.user_id == m.user_id,
+                Fixture.kickoff < today_start_utc,
+            )
+            if league.created_at is not None:
+                pred_q = pred_q.where(Fixture.kickoff >= league.created_at)
+            preds = (await db.execute(pred_q)).scalars().all()
+            total = sum(p.points or 0 for p in preds)
+
+            bracket = (await db.execute(
+                select(BracketPrediction).where(BracketPrediction.user_id == m.user_id)
+            )).scalar_one_or_none()
+            if bracket is not None and bracket.points is not None:
+                total += bracket.points
+
+            prev_entries.append((m.user_id, total))
+
+        sorted_prev = sorted(prev_entries, key=lambda x: x[1], reverse=True)
+        prev_rank_map = {user_id: idx + 1 for idx, (user_id, _) in enumerate(sorted_prev)}
+
+        for curr_rank, entry in enumerate(sorted_entries, start=1):
+            prev_rank = prev_rank_map.get(entry.user_id, curr_rank)
+            entry.rank_delta = curr_rank - prev_rank
+
+    return sorted_entries
 
 
 @router.get("/{league_id}/members", response_model=list[LeagueMemberOut])

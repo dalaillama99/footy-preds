@@ -20,9 +20,9 @@ export default function Leaderboard({ entries }) {
 
   // Map a bracket_bonus point value to its subtle leaderboard annotation.
   const bracketLabel = (bonus) => {
-    if (bonus === 5) return '+5 finals'
-    if (bonus === 10) return '+10 semis'
-    if (bonus === 15) return '+15 finals & semis'
+    if (bonus === 3) return '+3 bracket'
+    if (bonus === 6) return '+6 bracket'
+    if (bonus === 9) return '+9 finals & semis'
     return `+${bonus}`
   }
 
@@ -58,7 +58,7 @@ export default function Leaderboard({ entries }) {
                 onClick={() => toggle(e.user_id)}
                 className={`border-b border-gray-50 dark:border-gray-700 cursor-pointer ${e.user_id === user?.id ? 'bg-green-50 dark:bg-green-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
               >
-                <td className="px-2 sm:px-4 py-3 sm:py-3.5 text-gray-400 dark:text-gray-500">{ranks[i] === 1 ? '🥇' : ranks[i]}</td>
+                <td className="px-2 sm:px-4 py-3 sm:py-3.5 text-gray-400 dark:text-gray-500">{ranks[i] === 1 ? '🥇' : ranks[i]}{e.rank_delta < 0 ? <span className="ml-1 text-green-500 text-[10px]">▲</span> : e.rank_delta > 0 ? <span className="ml-1 text-red-500 text-[10px]">▼</span> : <span className="ml-1 text-gray-400 text-[10px]">—</span>}</td>
                 <td className="px-2 sm:px-4 py-3 sm:py-3.5 font-medium text-gray-900 dark:text-white">
                   {e.username}
                   {e.user_id === user?.id && <span className="ml-1 sm:ml-1.5 text-[10px] sm:text-xs text-green-600 dark:text-green-400">(you)</span>}

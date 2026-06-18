@@ -138,6 +138,7 @@ class LeaderboardEntry(BaseModel):
     correct_count: int
     real_name: Optional[str] = None
     bracket_bonus: Optional[float] = None
+    rank_delta: int = 0
 
 
 # ── Bonus bracket prediction ──────────────────────────────────────────────────
