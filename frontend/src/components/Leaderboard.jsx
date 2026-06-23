@@ -11,10 +11,15 @@ export default function Leaderboard({ entries }) {
   for (let i = 0; i < entries.length; i++) {
     if (i === 0) {
       ranks.push(1)
-    } else if (entries[i].total_points === entries[i - 1].total_points) {
-      ranks.push(ranks[i - 1])
     } else {
-      ranks.push(i + 1)
+      const prev = entries[i - 1]
+      const curr = entries[i]
+      const tied =
+        curr.total_points === prev.total_points &&
+        curr.exact_count === prev.exact_count &&
+        curr.correct_gd_count === prev.correct_gd_count &&
+        curr.correct_result_count === prev.correct_result_count
+      ranks.push(tied ? ranks[i - 1] : i + 1)
     }
   }
 
@@ -78,7 +83,7 @@ export default function Leaderboard({ entries }) {
                 <tr className="border-b border-gray-50 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-700/20">
                   <td />
                   <td colSpan={colSpan} className="px-2 sm:px-4 py-2 text-[10px] sm:text-xs text-gray-400 dark:text-gray-500">
-                    ⭐ {e.exact_count} exact &nbsp;·&nbsp; ✅ {e.correct_count} correct result
+                    ⭐ {e.exact_count} exact &nbsp;·&nbsp; 🎯 {e.correct_gd_count} correct +GD &nbsp;·&nbsp; ✅ {e.correct_result_count} correct result
                   </td>
                 </tr>
               )}

@@ -170,7 +170,8 @@ async def leaderboard(
         total = sum(p.points or 0 for p in preds)
         scored = sum(1 for p in preds if p.points is not None)
         exact = sum(1 for p in preds if p.points is not None and p.points >= 3)
-        correct = sum(1 for p in preds if p.points is not None and 1.5 <= p.points < 3)
+        correct_gd = sum(1 for p in preds if p.points is not None and 2.0 <= p.points < 3)
+        correct_result = sum(1 for p in preds if p.points is not None and 1.5 <= p.points < 2.0)
 
         # Bonus bracket points are global (same across all the user's leagues):
         # add the scored bracket bonus into the displayed total.
@@ -189,12 +190,13 @@ async def leaderboard(
             prediction_count=len(preds),
             scored_count=scored,
             exact_count=exact,
-            correct_count=correct,
+            correct_gd_count=correct_gd,
+            correct_result_count=correct_result,
             real_name=(m.user.username if user.is_admin else None),
             bracket_bonus=bracket_bonus,
         ))
 
-    sorted_entries = sorted(entries, key=lambda e: e.total_points, reverse=True)
+    sorted_entries = sorted(entries, key=lambda e: (e.total_points, e.exact_count, e.correct_gd_count, e.correct_result_count), reverse=True)
 
     if show_rank_changes:
         prev_entries = []
@@ -207,6 +209,9 @@ async def leaderboard(
                 pred_q = pred_q.where(Fixture.kickoff >= league.created_at)
             preds = (await db.execute(pred_q)).scalars().all()
             total = sum(p.points or 0 for p in preds)
+            prev_exact = sum(1 for p in preds if p.points is not None and p.points >= 3)
+            prev_correct_gd = sum(1 for p in preds if p.points is not None and 2.0 <= p.points < 3)
+            prev_correct_result = sum(1 for p in preds if p.points is not None and 1.5 <= p.points < 2.0)
 
             bracket = (await db.execute(
                 select(BracketPrediction).where(BracketPrediction.user_id == m.user_id)
@@ -214,10 +219,10 @@ async def leaderboard(
             if bracket is not None and bracket.points is not None:
                 total += bracket.points
 
-            prev_entries.append((m.user_id, total))
+            prev_entries.append((m.user_id, total, prev_exact, prev_correct_gd, prev_correct_result))
 
-        sorted_prev = sorted(prev_entries, key=lambda x: x[1], reverse=True)
-        prev_rank_map = {user_id: idx + 1 for idx, (user_id, _) in enumerate(sorted_prev)}
+        sorted_prev = sorted(prev_entries, key=lambda x: (x[1], x[2], x[3], x[4]), reverse=True)
+        prev_rank_map = {user_id: idx + 1 for idx, (user_id, *_) in enumerate(sorted_prev)}
 
         for curr_rank, entry in enumerate(sorted_entries, start=1):
             prev_rank = prev_rank_map.get(entry.user_id, curr_rank)

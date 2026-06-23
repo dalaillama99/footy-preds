@@ -135,7 +135,8 @@ class LeaderboardEntry(BaseModel):
     prediction_count: int
     scored_count: int
     exact_count: int
-    correct_count: int
+    correct_gd_count: int
+    correct_result_count: int
     real_name: Optional[str] = None
     bracket_bonus: Optional[float] = None
     rank_delta: int = 0
