@@ -25,12 +25,18 @@ async def global_leaderboard(
             continue
         total = sum(p.points or 0 for p in preds)
         scored = sum(1 for p in preds if p.points is not None)
+        exact = sum(1 for p in preds if p.points is not None and p.points >= 3)
+        correct_gd = sum(1 for p in preds if p.points is not None and 2.0 <= p.points < 3)
+        correct_result = sum(1 for p in preds if p.points is not None and 1.5 <= p.points < 2.0)
         entries.append(LeaderboardEntry(
             user_id=u.id,
             username=(u.team_name or u.username),
             total_points=total,
             prediction_count=len(preds),
             scored_count=scored,
+            exact_count=exact,
+            correct_gd_count=correct_gd,
+            correct_result_count=correct_result,
             real_name=(u.username if user.is_admin else None),
         ))
     return sorted(entries, key=lambda e: (-e.total_points, -e.scored_count, e.username))
