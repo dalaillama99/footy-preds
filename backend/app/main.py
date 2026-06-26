@@ -44,7 +44,7 @@ async def _has_active_matches() -> bool:
                 ((Fixture.status == "SCHEDULED") & (Fixture.kickoff <= datetime.utcnow()))
             )
         )
-        return result.scalar_one_or_none() is not None
+        return result.scalars().first() is not None
 
 
 async def _get_fixtures_due_result_check() -> list:
