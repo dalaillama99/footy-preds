@@ -87,7 +87,7 @@ export default function Home() {
               <span className="text-2xl">🏆</span>
               <div>
                 <p className="font-semibold text-gray-900 dark:text-white">Knockout draws — predict penalty winner</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">In knockout matches, if you predict a draw, a dropdown appears asking which team wins on penalties. This is optional — you can leave it blank.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">In knockout matches, predicting a draw requires you to also pick who wins on penalties. Predicting a non-draw means no penalty winner pick.</p>
               </div>
             </div>
           </div>
@@ -139,7 +139,7 @@ export default function Home() {
               <span className="text-2xl">🏆</span>
               <div>
                 <p className="font-semibold text-gray-900 dark:text-white">+0.5 — Penalty winner (knockout games only)</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Predicting a draw in a knockout game unlocks a penalty winner pick. Getting it right adds 0.5 pts. Predict a non-draw and there's no opportunity for this bonus.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">If you predict a draw in a knockout game, you must also pick who wins on penalties. Getting it right adds 0.5 pts. Predicting a non-draw means no penalty winner pick at all.</p>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-mono">exact draw + correct pen winner → 4 pts total</p>
               </div>
             </div>
