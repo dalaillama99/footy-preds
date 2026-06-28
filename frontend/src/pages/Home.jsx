@@ -134,11 +134,20 @@ export default function Home() {
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-mono">predicted 2–1 (3 goals), actual 1–2 (3 goals) → +0.25</p>
               </div>
             </div>
+
+            <div className="flex items-start gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4">
+              <span className="text-2xl">🏆</span>
+              <div>
+                <p className="font-semibold text-gray-900 dark:text-white">+0.5 — Penalty winner (knockout games only)</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Predicting a draw in a knockout game unlocks a penalty winner pick. Getting it right adds 0.5 pts. Predict a non-draw and there's no opportunity for this bonus.</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-mono">exact draw + correct pen winner → 4 pts total</p>
+              </div>
+            </div>
           </div>
 
           <div className="bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm text-gray-600 dark:text-gray-400 mt-3">
-            <p className="font-semibold text-gray-800 dark:text-gray-200 mb-1">Maximum without exact score: 2 pts</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Correct result (1.5) + correct goal diff (+0.5). Example: predicted 2–0, actual 3–1.</p>
+            <p className="font-semibold text-gray-800 dark:text-gray-200 mb-1">Maximum per game: 4 pts (knockout only)</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Exact draw scoreline + correct penalty winner. In a regular game, the max is 3 pts (exact score). Without an exact score, the max is 2.5 pts — correct draw + correct goal difference + correct penalty winner.</p>
           </div>
         </section>
 
