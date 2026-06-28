@@ -163,6 +163,10 @@ export default function FixtureCard({
       setPredError('Scores cannot be negative')
       return
     }
+    if (isKnockout && hPred === aPred && !penWinner) {
+      setPredError('Please select who wins on penalties')
+      return
+    }
     setSaving(true)
     try {
       const isDraw = hPred === aPred
@@ -337,7 +341,7 @@ export default function FixtureCard({
                 <span>If pens:</span>
                 <select value={penWinner} onChange={e => setPenWinner(e.target.value)}
                   className="border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 text-xs bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-green-500">
-                  <option value="">— don't predict —</option>
+                  <option value="" disabled>Select winner</option>
                   <option value="home">{fixture.home_team}</option>
                   <option value="away">{fixture.away_team}</option>
                 </select>
