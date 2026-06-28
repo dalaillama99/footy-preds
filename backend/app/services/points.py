@@ -13,21 +13,26 @@ def calculate_points(
         if a > h: return "away"
         return "draw"
 
-    # For penalty shootout matches the decisive result is who won on pens, not the AET draw
-    if duration == "PENALTY_SHOOTOUT" and home_penalties is not None and away_penalties is not None:
-        actual_result = "home" if home_penalties > away_penalties else "away"
+    is_penalty = duration == "PENALTY_SHOOTOUT" and home_penalties is not None and away_penalties is not None
+
+    # For penalty shootouts the AET result is always a draw; who wins pens is tracked separately
+    if is_penalty:
+        actual_result = "draw"
     else:
         actual_result = score_result(actual_home, actual_away)
 
     pred_result = score_result(pred_home, pred_away)
 
+    pen_correct = False
+    if is_penalty and pred_pen_winner is not None:
+        pen_winner_actual = "home" if home_penalties > away_penalties else "away"
+        pen_correct = pred_pen_winner == pen_winner_actual
+
     # Exact AET score
     if pred_home == actual_home and pred_away == actual_away:
         points = 3.0
-        if duration == "PENALTY_SHOOTOUT" and pred_pen_winner is not None and home_penalties is not None:
-            pen_winner = "home" if home_penalties > away_penalties else "away"
-            if pred_pen_winner == pen_winner:
-                points += 1.0
+        if pen_correct:
+            points += 1.0  # perfect penalty prediction: 4 pts total
         return points
 
     points = 0.0
@@ -36,6 +41,8 @@ def calculate_points(
         points += 1.5
         if abs(pred_home - pred_away) == abs(actual_home - actual_away):
             points += 0.5
+        if pen_correct:
+            points += 0.5  # correct draw result + correct pen winner
 
     if pred_home + pred_away == actual_home + actual_away:
         points += 0.25

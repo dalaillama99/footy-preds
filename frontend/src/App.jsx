@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import api from './api/client'
 import Navbar from './components/Navbar'
 import BracketModal from './components/BracketModal'
+import PenaltyInfoModal from './components/PenaltyInfoModal'
 import Login from './pages/Login'
 import AuthCallback from './pages/AuthCallback'
 // Register and email/password login removed — Google OAuth only
@@ -87,6 +88,7 @@ function Layout({ children }) {
       <Navbar />
       {needsTeamName && <TeamNameModal />}
       {!needsTeamName && <BracketModal />}
+      {!needsTeamName && <PenaltyInfoModal />}
       <main className="max-w-4xl mx-auto px-4 py-8">{children}</main>
     </div>
   )

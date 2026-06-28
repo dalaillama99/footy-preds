@@ -148,8 +148,8 @@ function PredRow({ pred, onUpdated }) {
           {scored ? (
             f.duration === 'PENALTY_SHOOTOUT' && f.home_penalties != null ? (
               <div>
-                <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm">{f.home_score}–{f.away_score}</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500">({f.home_penalties}–{f.away_penalties} pens)</p>
+                <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm">{f.home_penalties}–{f.away_penalties} pens</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">{f.home_score}–{f.away_score} AET</p>
               </div>
             ) : (
               <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm">
