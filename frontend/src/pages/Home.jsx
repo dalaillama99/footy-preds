@@ -139,7 +139,7 @@ export default function Home() {
               <span className="text-2xl">🏆</span>
               <div>
                 <p className="font-semibold text-gray-900 dark:text-white">+0.5 — Penalty winner (knockout games only)</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">If you predict a draw in a knockout game, you must also pick who wins on penalties. Getting it right adds 0.5 pts. Predicting a non-draw means no penalty winner pick at all.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Predicting a draw requires you to pick the pen winner — getting it right adds 0.5 pts. Predicting a non-draw means no pen pick, but if your predicted team goes on to win on penalties, you still earn 0.5 pts. Total goals always count in penalty games.</p>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-mono">exact draw + correct pen winner → 4 pts total</p>
               </div>
             </div>
@@ -147,7 +147,89 @@ export default function Home() {
 
           <div className="bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm text-gray-600 dark:text-gray-400 mt-3">
             <p className="font-semibold text-gray-800 dark:text-gray-200 mb-1">Maximum per game: 4 pts (knockout only)</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Exact draw scoreline + correct penalty winner. In a regular game, the max is 3 pts (exact score). Without an exact score, the max is 2.5 pts — correct draw + correct goal difference + correct penalty winner.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Exact draw scoreline + correct penalty winner in a knockout shootout. In a regular game the max is 3 pts (exact score). Without an exact score the max is 2.5 pts — correct draw + correct pen winner.</p>
+          </div>
+        </section>
+
+        {/* Section 3: Penalty Scenarios */}
+        <section>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Penalty shootout scenarios</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">All possible point outcomes when a knockout game goes to penalties.</p>
+
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">You predicted a draw</p>
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-100 dark:border-gray-700">
+                      <th className="text-left font-semibold text-gray-400 px-4 py-2.5">Scenario</th>
+                      <th className="text-left font-semibold text-gray-400 px-4 py-2.5 hidden sm:table-cell">Example</th>
+                      <th className="text-right font-semibold text-gray-400 px-4 py-2.5">Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                    <tr>
+                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Exact score + correct pen winner</td>
+                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 1–1 Home pens, actual 1–1 Home pens</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-white">4</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Exact score + wrong pen winner</td>
+                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 1–1 Away pens, actual 1–1 Home pens</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-white">3</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Non-exact draw + correct pen winner</td>
+                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 2–2 Home pens, actual 1–1 Home pens</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-white">2.5</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Non-exact draw + wrong pen winner</td>
+                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 2–2 Away pens, actual 1–1 Home pens</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-white">2</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">You predicted a winner (non-draw)</p>
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-100 dark:border-gray-700">
+                      <th className="text-left font-semibold text-gray-400 px-4 py-2.5">Scenario</th>
+                      <th className="text-left font-semibold text-gray-400 px-4 py-2.5 hidden sm:table-cell">Example</th>
+                      <th className="text-right font-semibold text-gray-400 px-4 py-2.5">Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                    <tr>
+                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Predicted team wins pens + total goals match</td>
+                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 3–1 Home, actual 2–2 Home pens</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-white">0.75</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Predicted team wins pens, no total goals match</td>
+                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 2–1 Home, actual 1–1 Home pens</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-white">0.5</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Predicted team loses pens + total goals match</td>
+                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 3–1 Home, actual 2–2 Away pens</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-white">0.25</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Predicted team loses pens, no total goals match</td>
+                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 2–1 Home, actual 1–1 Away pens</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-white">0</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </section>
 

@@ -29,12 +29,28 @@ def test_draw_prediction_correct_gd_no_pen():
     assert calculate_points(2, 2, 1, 1, duration="PENALTY_SHOOTOUT", home_penalties=5, away_penalties=3, pred_pen_winner=None) == 2.0
 
 def test_non_draw_prediction_in_pen_game():
-    # pred 2–1 (home win), actual 1–1 pens: wrong AET result → 0
-    assert calculate_points(2, 1, 1, 1, duration="PENALTY_SHOOTOUT", home_penalties=5, away_penalties=3, pred_pen_winner="home") == 0.0
+    # pred 2–1 (home win), actual 1–1, home wins 5–3 → predicted winner correct → 0.5
+    assert calculate_points(2, 1, 1, 1, duration="PENALTY_SHOOTOUT", home_penalties=5, away_penalties=3, pred_pen_winner="home") == 0.5
 
 def test_non_draw_prediction_wrong_result_correct_pen():
-    # pred 3–1 (home win), actual 1–1 pens: wrong result even with correct pen → 0
-    assert calculate_points(3, 1, 1, 1, duration="PENALTY_SHOOTOUT", home_penalties=5, away_penalties=3, pred_pen_winner="home") == 0.0
+    # pred 3–1 (home win), actual 1–1, home wins 5–3 → predicted winner correct → 0.5
+    assert calculate_points(3, 1, 1, 1, duration="PENALTY_SHOOTOUT", home_penalties=5, away_penalties=3, pred_pen_winner="home") == 0.5
+
+def test_non_draw_prediction_wrong_team_wins_pens():
+    # pred 2–1 (home win), actual 1–1, away wins pens → predicted winner wrong → 0.0
+    assert calculate_points(2, 1, 1, 1, duration="PENALTY_SHOOTOUT", home_penalties=3, away_penalties=5, pred_pen_winner=None) == 0.0
+
+def test_non_draw_prediction_correct_team_with_total_goals():
+    # pred 3–1 (home, total 4), actual 2–2 (total 4), home wins pens → 0.5 + 0.25 = 0.75
+    assert calculate_points(3, 1, 2, 2, duration="PENALTY_SHOOTOUT", home_penalties=5, away_penalties=3, pred_pen_winner=None) == 0.75
+
+def test_non_draw_prediction_wrong_team_with_total_goals():
+    # pred 3–1 (home, total 4), actual 2–2 (total 4), away wins pens → 0.0 + 0.25 = 0.25
+    assert calculate_points(3, 1, 2, 2, duration="PENALTY_SHOOTOUT", home_penalties=3, away_penalties=5, pred_pen_winner=None) == 0.25
+
+def test_non_draw_prediction_away_correct():
+    # pred 0–1 (away win), actual 1–1, away wins pens (3 < 5) → 0.5
+    assert calculate_points(0, 1, 1, 1, duration="PENALTY_SHOOTOUT", home_penalties=3, away_penalties=5, pred_pen_winner=None) == 0.5
 
 
 # ── Non-penalty scenarios (unchanged behaviour) ───────────────────────────────
