@@ -49,9 +49,9 @@ function FixturePredictions({ fixture, predictions }) {
                 <div className="text-center px-2">
                   {fixture.duration === 'PENALTY_SHOOTOUT' && fixture.home_penalties != null ? (
                     <>
-                      <span className="font-bold text-base">{fixture.home_penalties}–{fixture.away_penalties}</span>
-                      <span className="ml-1 text-xs text-gray-400 dark:text-gray-500 font-normal">pens</span>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 font-normal">{fixture.home_score}–{fixture.away_score} AET</p>
+                      <span className="font-bold text-base">{fixture.home_score}–{fixture.away_score}</span>
+                      <span className="ml-1 text-xs text-gray-400 dark:text-gray-500 font-normal">AET</span>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 font-normal">{fixture.home_penalties}–{fixture.away_penalties} pens</p>
                     </>
                   ) : (
                     <>

@@ -278,11 +278,11 @@ export default function FixtureCard({
               isPenShootout ? (
                 <>
                   <span className="text-xl font-bold text-gray-900 dark:text-white">
-                    {fixture.home_penalties}–{fixture.away_penalties}
+                    {fixture.home_score}–{fixture.away_score}
                   </span>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">pens</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">AET</p>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                    {fixture.home_score}–{fixture.away_score} AET
+                    {fixture.home_penalties}–{fixture.away_penalties} pens
                   </p>
                 </>
               ) : (
