@@ -14,9 +14,14 @@ from app.schemas import PredictionCreate, PredictionOut
 router = APIRouter(prefix="/predictions", tags=["predictions"])
 
 
-def _kickoff_passed(kickoff: datetime) -> bool:
+def _is_locked(fixture) -> bool:
+    if fixture.status in ("LIVE", "FINISHED"):
+        return True
+    if fixture.status == "POSTPONED":
+        return False
+    # SCHEDULED — lock only once kickoff time has passed
     now = datetime.now(timezone.utc)
-    kt = kickoff if kickoff.tzinfo else kickoff.replace(tzinfo=timezone.utc)
+    kt = fixture.kickoff if fixture.kickoff.tzinfo else fixture.kickoff.replace(tzinfo=timezone.utc)
     return kt <= now
 
 
@@ -30,7 +35,7 @@ async def submit_prediction(
     fixture = fixture_result.scalar_one_or_none()
     if not fixture:
         raise HTTPException(status_code=404, detail="Fixture not found")
-    if _kickoff_passed(fixture.kickoff):
+    if _is_locked(fixture):
         raise HTTPException(status_code=400, detail="Prediction deadline has passed (kickoff already started)")
 
     existing = await db.execute(

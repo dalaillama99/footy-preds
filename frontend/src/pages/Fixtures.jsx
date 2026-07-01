@@ -80,7 +80,7 @@ export default function Fixtures() {
   useEffect(() => { fetchAll() }, [fetchAll])
 
   useEffect(() => {
-    pollerRef.current = setInterval(fetchAll, 60_000)
+    pollerRef.current = setInterval(fetchAll, 15_000)
     return () => clearInterval(pollerRef.current)
   }, [fetchAll])
 

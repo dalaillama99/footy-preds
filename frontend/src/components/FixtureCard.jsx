@@ -98,7 +98,8 @@ export default function FixtureCard({
   fixture, prediction, isAdmin, showLineups,
   onPredictionSaved, onScoreSet, onFixtureUpdated, onFixtureDeleted,
 }) {
-  const locked = isPast(fixture.kickoff)
+  const locked = fixture.status === 'LIVE' || fixture.status === 'FINISHED' ||
+    (fixture.status !== 'POSTPONED' && isPast(fixture.kickoff))
   const finished = fixture.status === 'FINISHED'
   const live = fixture.status === 'LIVE'
   const postponed = fixture.status === 'POSTPONED'

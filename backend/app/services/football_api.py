@@ -9,7 +9,7 @@ Strategy:
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy import select
@@ -174,6 +174,14 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
             prev_status = fixture.status
             prev_home = fixture.home_score
             prev_away = fixture.away_score
+            now_utc = datetime.now(timezone.utc)
+            fixture_kickoff = fixture.kickoff if fixture.kickoff.tzinfo else fixture.kickoff.replace(tzinfo=timezone.utc)
+            if m["status"] == "LIVE" and fixture.status == "SCHEDULED" and now_utc < fixture_kickoff - timedelta(minutes=5):
+                logger.warning(
+                    "Rejecting premature LIVE transition for fixture %s (kickoff %s, now %s)",
+                    fixture.api_id, fixture.kickoff, now_utc,
+                )
+                m = {**m, "status": fixture.status}  # override status to keep current
             fixture.status = m["status"]
             fixture.home_score = m["home_score"]
             fixture.away_score = m["away_score"]
