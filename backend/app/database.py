@@ -28,6 +28,8 @@ async def init_db():
             "ALTER TABLE predictions ADD COLUMN pen_winner TEXT",
             "ALTER TABLE users ADD COLUMN team_name TEXT",
             "ALTER TABLE fixtures ADD COLUMN minute INTEGER",
+            "ALTER TABLE bracket_predictions ADD COLUMN sf_points REAL",
+            "ALTER TABLE bracket_predictions ADD COLUMN finalist_points REAL",
         ]:
             try:
                 await conn.execute(text(stmt))

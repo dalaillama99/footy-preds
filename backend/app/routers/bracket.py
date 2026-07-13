@@ -87,9 +87,10 @@ async def score_brackets(user: User = Depends(get_current_user), db: AsyncSessio
     """Admin action: compute points for ALL brackets from real World Cup fixtures.
 
     Scoring is order-independent everywhere (matchups compared as frozensets):
-      - +3 if predicted semi-final matchups match the actual two SEMI_FINALS.
+      - +1 if exactly 1 of the 2 predicted semi-final matchups is correct.
+      - +3 if both predicted semi-final matchups are correct.
       - +3 if predicted finalists match the actual FINAL pairing.
-      - +3 bonus if BOTH of the above are correct (total 9).
+      - +3 bonus if BOTH semis AND finalists are correct (total 9).
     A stage only counts as "known" once its fixtures have both teams set.
     """
     # Admin-only while in test (remove this guard to un-gate for all users).
@@ -120,23 +121,35 @@ async def score_brackets(user: User = Depends(get_current_user), db: AsyncSessio
     for b in brackets:
         if not (semis_known or finals_known):
             b.points = None
+            b.sf_points = None
+            b.finalist_points = None
             continue
         pts = 0.0
+        sf_pts = 0.0
+        finalist_pts = 0.0
         semis_correct = False
         finals_correct = False
         if semis_known:
-            pred_semis = {frozenset({b.semi1_a, b.semi1_b}), frozenset({b.semi2_a, b.semi2_b})}
-            if pred_semis == actual_semis:
+            pred_semi1 = frozenset({b.semi1_a, b.semi1_b})
+            pred_semi2 = frozenset({b.semi2_a, b.semi2_b})
+            matches = sum(1 for actual in actual_semis if actual in (pred_semi1, pred_semi2))
+            if matches == 2:
                 semis_correct = True
-                pts += 3
+                sf_pts = 3.0
+            elif matches == 1:
+                sf_pts = 1.0
+            pts += sf_pts
         if finals_known:
             pred_finalists = frozenset({b.finalist1, b.finalist2})
             if pred_finalists == actual_finalists:
                 finals_correct = True
-                pts += 3
+                finalist_pts += 3.0
         if semis_correct and finals_correct:
-            pts += 3  # bonus for nailing everything
+            finalist_pts += 3.0  # bonus for nailing everything
+        pts += finalist_pts
         b.points = pts
+        b.sf_points = sf_pts
+        b.finalist_points = finalist_pts
 
     await db.commit()
     return {"scored": len(brackets)}

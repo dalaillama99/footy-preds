@@ -52,6 +52,7 @@ class LeagueOut(BaseModel):
     admin_id: str
     member_count: int
     created_at: datetime
+    semis_finished: bool = False
 
 
 class LeagueSettingsUpdate(BaseModel):
@@ -139,6 +140,8 @@ class LeaderboardEntry(BaseModel):
     correct_result_count: int
     real_name: Optional[str] = None
     bracket_bonus: Optional[float] = None
+    bracket_sf_points: Optional[float] = None
+    bracket_finalist_points: Optional[float] = None
     rank_delta: int = 0
 
 
@@ -168,7 +171,19 @@ class BracketPredictionOut(BaseModel):
     finalist1: str
     finalist2: str
     points: Optional[float] = None
+    sf_points: Optional[float] = None
+    finalist_points: Optional[float] = None
     submitted_at: datetime
+
+
+class MemberSemiPredictionOut(BaseModel):
+    user_id: str
+    username: str
+    has_prediction: bool
+    semi1_a: Optional[BracketTeam] = None
+    semi1_b: Optional[BracketTeam] = None
+    semi2_a: Optional[BracketTeam] = None
+    semi2_b: Optional[BracketTeam] = None
 
 
 # ── League predictions (post-kickoff, visible to all members) ─────────────────

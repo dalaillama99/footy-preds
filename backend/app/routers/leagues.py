@@ -11,8 +11,9 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.models import BracketPrediction, Fixture, League, LeagueMember, Prediction, User
 from app.schemas import (
-    FixturePredictionsOut, LeagueCreate, LeagueJoin, LeagueOut, LeagueSettingsUpdate,
-    LeaderboardEntry, LeagueMemberOut, MemberPredictionOut,
+    BracketPredictionOut, BracketTeam, FixturePredictionsOut, LeagueCreate, LeagueJoin,
+    LeagueOut, LeagueSettingsUpdate, LeaderboardEntry, LeagueMemberOut,
+    MemberPredictionOut, MemberSemiPredictionOut,
 )
 
 router = APIRouter(prefix="/leagues", tags=["leagues"])
@@ -29,6 +30,28 @@ def _display_name(user: User) -> str:
     return user.team_name or user.username
 
 
+async def _semis_finished(db: AsyncSession) -> bool:
+    """Return True if both SEMI_FINALS fixtures exist with status FINISHED."""
+    result = await db.execute(
+        select(Fixture).where(Fixture.stage == "SEMI_FINALS", Fixture.competition.contains("World Cup"))
+    )
+    semi_fixtures = result.scalars().all()
+    return len(semi_fixtures) >= 2 and all(f.status == "FINISHED" for f in semi_fixtures)
+
+
+async def _semis_revealed(db: AsyncSession) -> bool:
+    """Return True if at least one SEMI_FINALS fixture has kicked off (kickoff <= now UTC)."""
+    now_utc = datetime.utcnow()
+    result = await db.execute(
+        select(Fixture).where(
+            Fixture.stage == "SEMI_FINALS",
+            Fixture.competition.contains("World Cup"),
+            Fixture.kickoff <= now_utc,
+        )
+    )
+    return result.scalar_one_or_none() is not None
+
+
 @router.post("", response_model=LeagueOut)
 async def create_league(
     data: LeagueCreate,
@@ -40,7 +63,8 @@ async def create_league(
     db.add(LeagueMember(id=str(uuid.uuid4()), user_id=user.id, league_id=league.id))
     await db.commit()
     await db.refresh(league)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=1, created_at=league.created_at)
+    sf_done = await _semis_finished(db)
+    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=1, created_at=league.created_at, semis_finished=sf_done)
 
 
 @router.post("/join", response_model=LeagueOut)
@@ -63,7 +87,8 @@ async def join_league(
     db.add(LeagueMember(id=str(uuid.uuid4()), user_id=user.id, league_id=league.id))
     await db.commit()
     count = await _member_count(db, league.id)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at)
+    sf_done = await _semis_finished(db)
+    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done)
 
 
 @router.get("", response_model=list[LeagueOut])
@@ -71,11 +96,12 @@ async def my_leagues(user: User = Depends(get_current_user), db: AsyncSession = 
     memberships = await db.execute(
         select(LeagueMember).where(LeagueMember.user_id == user.id).options(selectinload(LeagueMember.league))
     )
+    sf_done = await _semis_finished(db)
     leagues = []
     for m in memberships.scalars():
         count = await _member_count(db, m.league_id)
         league = m.league
-        leagues.append(LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at))
+        leagues.append(LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done))
     return leagues
 
 
@@ -93,7 +119,8 @@ async def get_league(league_id: str, user: User = Depends(get_current_user), db:
         raise HTTPException(status_code=404, detail="League not found")
 
     count = await _member_count(db, league_id)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at)
+    sf_done = await _semis_finished(db)
+    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done)
 
 
 @router.patch("/{league_id}/settings", response_model=LeagueOut)
@@ -116,7 +143,8 @@ async def update_league_settings(
     await db.commit()
     await db.refresh(league)
     count = await _member_count(db, league_id)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at)
+    sf_done = await _semis_finished(db)
+    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done)
 
 
 @router.get("/{league_id}/leaderboard", response_model=list[LeaderboardEntry])
@@ -179,9 +207,13 @@ async def leaderboard(
             select(BracketPrediction).where(BracketPrediction.user_id == m.user_id)
         )).scalar_one_or_none()
         bracket_bonus = None
+        bracket_sf_pts = None
+        bracket_finalist_pts = None
         if bracket is not None and bracket.points is not None:
             bracket_bonus = bracket.points
             total += bracket.points
+            bracket_sf_pts = bracket.sf_points
+            bracket_finalist_pts = bracket.finalist_points
 
         entries.append(LeaderboardEntry(
             user_id=m.user_id,
@@ -194,6 +226,8 @@ async def leaderboard(
             correct_result_count=correct_result,
             real_name=(m.user.username if user.is_admin else None),
             bracket_bonus=bracket_bonus,
+            bracket_sf_points=bracket_sf_pts,
+            bracket_finalist_points=bracket_finalist_pts,
         ))
 
     sorted_entries = sorted(entries, key=lambda e: (e.total_points, e.exact_count, e.correct_gd_count, e.correct_result_count), reverse=True)
@@ -385,3 +419,107 @@ async def kick_member(
     await db.delete(member)
     await db.commit()
     return {"kicked": target_user_id}
+
+
+@router.get("/{league_id}/bracket-semis", response_model=list[MemberSemiPredictionOut])
+async def league_bracket_semis(
+    league_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """All league members' semi-final predictions. Only revealed once at least one SEMI_FINALS
+    fixture has kicked off (kickoff <= now UTC)."""
+    membership = await db.execute(
+        select(LeagueMember).where(LeagueMember.user_id == user.id, LeagueMember.league_id == league_id)
+    )
+    if not membership.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Not a member of this league")
+
+    league = (await db.execute(select(League).where(League.id == league_id))).scalar_one_or_none()
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+
+    if not await _semis_revealed(db):
+        raise HTTPException(status_code=403, detail="Semi-final predictions are not yet revealed")
+
+    members_result = await db.execute(
+        select(LeagueMember)
+        .where(LeagueMember.league_id == league_id)
+        .options(selectinload(LeagueMember.user))
+        .order_by(LeagueMember.joined_at)
+    )
+    members = members_result.scalars().all()
+
+    # Build a crest lookup from World Cup fixtures
+    wc_fixtures = (await db.execute(
+        select(Fixture).where(Fixture.competition.contains("World Cup"))
+    )).scalars().all()
+    crest_map: dict[str, str | None] = {}
+    for f in wc_fixtures:
+        for name, crest in ((f.home_team, f.home_team_crest), (f.away_team, f.away_team_crest)):
+            if name and (name not in crest_map or (crest_map[name] is None and crest)):
+                crest_map[name] = crest
+
+    bracket_result = await db.execute(
+        select(BracketPrediction).where(
+            BracketPrediction.user_id.in_([m.user_id for m in members])
+        )
+    )
+    bracket_map = {b.user_id: b for b in bracket_result.scalars()}
+
+    def _team(name: str) -> BracketTeam:
+        return BracketTeam(name=name, crest=crest_map.get(name))
+
+    rows = []
+    for m in members:
+        b = bracket_map.get(m.user_id)
+        if b is None:
+            rows.append(MemberSemiPredictionOut(
+                user_id=m.user_id,
+                username=_display_name(m.user),
+                has_prediction=False,
+            ))
+        else:
+            rows.append(MemberSemiPredictionOut(
+                user_id=m.user_id,
+                username=_display_name(m.user),
+                has_prediction=True,
+                semi1_a=_team(b.semi1_a),
+                semi1_b=_team(b.semi1_b),
+                semi2_a=_team(b.semi2_a),
+                semi2_b=_team(b.semi2_b),
+            ))
+    return rows
+
+
+@router.get("/{league_id}/bracket/{target_user_id}", response_model=BracketPredictionOut)
+async def league_member_bracket(
+    league_id: str,
+    target_user_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Full bracket prediction for a specific league member. Caller must be a league member;
+    target must also be a member. Returns 403 if caller is not a member, 404 if target has
+    no bracket or is not a member."""
+    # Verify caller is a member
+    caller_membership = await db.execute(
+        select(LeagueMember).where(LeagueMember.user_id == user.id, LeagueMember.league_id == league_id)
+    )
+    if not caller_membership.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Not a member of this league")
+
+    # Verify target is a member
+    target_membership = await db.execute(
+        select(LeagueMember).where(LeagueMember.user_id == target_user_id, LeagueMember.league_id == league_id)
+    )
+    if not target_membership.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Target user is not a member of this league")
+
+    bracket = (await db.execute(
+        select(BracketPrediction).where(BracketPrediction.user_id == target_user_id)
+    )).scalar_one_or_none()
+    if not bracket:
+        raise HTTPException(status_code=404, detail="No bracket found for this user")
+
+    return bracket
