@@ -225,6 +225,8 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
 
             if m["status"] == "FINISHED" and m["home_score"] is not None:
                 points_recalculated += await _recalc_points(db, fixture)
+            if m.get("stage") in ("SEMI_FINALS", "FINAL"):
+                await _rescore_brackets(db)
             created += 1
 
     await db.commit()

@@ -123,6 +123,12 @@ async def _live_score_poller():
 @app.on_event("startup")
 async def startup():
     await init_db()
+    from app.services.football_api import _rescore_brackets
+    async with AsyncSessionLocal() as db:
+        scored = await _rescore_brackets(db)
+        await db.commit()
+        if scored:
+            logger.info("Startup: rescored %d bracket(s)", scored)
     if settings.FOOTBALL_API_KEY:
         asyncio.create_task(_live_score_poller())
         logger.info("Live score poller started (12s active / 60s idle)")
