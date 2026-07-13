@@ -6,6 +6,7 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.models import BracketPrediction, Fixture, User
 from app.schemas import BracketPredictionIn, BracketPredictionOut, BracketTeam
+from app.services.football_api import _rescore_brackets
 
 router = APIRouter(prefix="/bracket", tags=["bracket"])
 
@@ -97,59 +98,6 @@ async def score_brackets(user: User = Depends(get_current_user), db: AsyncSessio
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
 
-    wc = await db.execute(select(Fixture).where(Fixture.competition.contains("World Cup")))
-    fixtures = wc.scalars().all()
-
-    # Actual semis: the 2 SEMI_FINALS fixtures with both teams known.
-    actual_semis = {
-        frozenset({f.home_team, f.away_team})
-        for f in fixtures
-        if f.stage == "SEMI_FINALS" and f.home_team and f.away_team
-    }
-    semis_known = len(actual_semis) == 2
-
-    # Actual finalists: the FINAL fixture with both teams known.
-    final_fixtures = [
-        f for f in fixtures if f.stage == "FINAL" and f.home_team and f.away_team
-    ]
-    finals_known = len(final_fixtures) >= 1
-    actual_finalists = (
-        frozenset({final_fixtures[0].home_team, final_fixtures[0].away_team}) if finals_known else None
-    )
-
-    brackets = (await db.execute(select(BracketPrediction))).scalars().all()
-    for b in brackets:
-        if not (semis_known or finals_known):
-            b.points = None
-            b.sf_points = None
-            b.finalist_points = None
-            continue
-        pts = 0.0
-        sf_pts = 0.0
-        finalist_pts = 0.0
-        semis_correct = False
-        finals_correct = False
-        if semis_known:
-            pred_semi1 = frozenset({b.semi1_a, b.semi1_b})
-            pred_semi2 = frozenset({b.semi2_a, b.semi2_b})
-            matches = sum(1 for actual in actual_semis if actual in (pred_semi1, pred_semi2))
-            if matches == 2:
-                semis_correct = True
-                sf_pts = 3.0
-            elif matches == 1:
-                sf_pts = 1.0
-            pts += sf_pts
-        if finals_known:
-            pred_finalists = frozenset({b.finalist1, b.finalist2})
-            if pred_finalists == actual_finalists:
-                finals_correct = True
-                finalist_pts += 3.0
-        if semis_correct and finals_correct:
-            finalist_pts += 3.0  # bonus for nailing everything
-        pts += finalist_pts
-        b.points = pts
-        b.sf_points = sf_pts
-        b.finalist_points = finalist_pts
-
+    scored = await _rescore_brackets(db)
     await db.commit()
-    return {"scored": len(brackets)}
+    return {"scored": scored}

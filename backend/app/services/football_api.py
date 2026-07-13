@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models import Fixture, Prediction
+from app.models import BracketPrediction, Fixture, Prediction
 from app.services.points import calculate_points
 
 logger = logging.getLogger(__name__)
@@ -197,6 +197,8 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
             score_changed = (prev_home != m["home_score"] or prev_away != m["away_score"])
             if m["status"] == "FINISHED" and m["home_score"] is not None and (just_finished or score_changed or pen_changed):
                 points_recalculated += await _recalc_points(db, fixture)
+            if just_finished and m.get("stage") in ("SEMI_FINALS", "FINAL"):
+                await _rescore_brackets(db)
             updated += 1
         else:
             fixture = Fixture(
@@ -260,6 +262,51 @@ async def fetch_match_lineups(api_id: int) -> dict:
     away = parse_team(data.get("awayTeam", {}))
     available = bool(home["lineup"] and away["lineup"])
     return {"available": available, "home": home, "away": away}
+
+
+async def _rescore_brackets(db: AsyncSession) -> int:
+    """Rescore all bracket predictions from current WC fixture state. Returns count updated."""
+    wc = await db.execute(select(Fixture).where(Fixture.competition.contains("World Cup")))
+    fixtures = wc.scalars().all()
+
+    actual_semis = {
+        frozenset({f.home_team, f.away_team})
+        for f in fixtures
+        if f.stage == "SEMI_FINALS" and f.home_team and f.away_team
+    }
+    semis_known = len(actual_semis) == 2
+    final_fixtures = [f for f in fixtures if f.stage == "FINAL" and f.home_team and f.away_team]
+    finals_known = len(final_fixtures) >= 1
+    actual_finalists = frozenset({final_fixtures[0].home_team, final_fixtures[0].away_team}) if finals_known else None
+
+    brackets = (await db.execute(select(BracketPrediction))).scalars().all()
+    for b in brackets:
+        if not (semis_known or finals_known):
+            b.points = None
+            b.sf_points = None
+            b.finalist_points = None
+            continue
+        sf_pts = finalist_pts = 0.0
+        semis_correct = finals_correct = False
+        if semis_known:
+            pred_semi1 = frozenset({b.semi1_a, b.semi1_b})
+            pred_semi2 = frozenset({b.semi2_a, b.semi2_b})
+            matches = sum(1 for actual in actual_semis if actual in (pred_semi1, pred_semi2))
+            if matches == 2:
+                semis_correct = True
+                sf_pts = 3.0
+            elif matches == 1:
+                sf_pts = 1.0
+        if finals_known:
+            if frozenset({b.finalist1, b.finalist2}) == actual_finalists:
+                finals_correct = True
+                finalist_pts = 3.0
+        if semis_correct and finals_correct:
+            finalist_pts += 3.0
+        b.sf_points = sf_pts
+        b.finalist_points = finalist_pts
+        b.points = sf_pts + finalist_pts
+    return len(brackets)
 
 
 async def _recalc_points(db: AsyncSession, fixture: Fixture) -> int:
