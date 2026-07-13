@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import Leaderboard from '../components/Leaderboard'
+import SFPredictions from '../components/SFPredictions'
 
 function fmtKickoff(kickoff) {
   const d = new Date(kickoff + 'Z')
@@ -273,7 +274,14 @@ export default function LeagueDetail() {
 
       {/* Tab content */}
       {tab === 'Standings' && (
-        <Leaderboard entries={board} />
+        <>
+          <Leaderboard
+            entries={board}
+            leagueId={id}
+            semisFinished={league.semis_finished ?? false}
+          />
+          <SFPredictions leagueId={id} />
+        </>
       )}
 
       {tab === 'Predictions' && (

@@ -1,9 +1,11 @@
 import { useState, Fragment } from 'react'
 import { useAuth } from '../context/AuthContext'
+import BracketModal from './BracketModal'
 
-export default function Leaderboard({ entries }) {
+export default function Leaderboard({ entries, leagueId, semisFinished = false }) {
   const { user } = useAuth()
   const [expanded, setExpanded] = useState(new Set())
+  const [bracketView, setBracketView] = useState(null) // { userId, username } | null
 
   if (!entries.length) return <p className="text-gray-400 dark:text-gray-500 text-sm">No predictions scored yet.</p>
 
@@ -25,6 +27,7 @@ export default function Leaderboard({ entries }) {
 
   // Map a bracket_bonus point value to its subtle leaderboard annotation.
   const bracketLabel = (bonus) => {
+    if (bonus === 1) return '+1 bracket'
     if (bonus === 3) return '+3 bracket'
     if (bonus === 6) return '+6 bracket'
     if (bonus === 9) return '+9 finals & semis'
@@ -38,59 +41,91 @@ export default function Leaderboard({ entries }) {
     return next
   })
 
+  const openBracket = (e, entry) => {
+    e.stopPropagation()
+    setBracketView({ userId: entry.user_id, username: entry.username })
+  }
+
   // real_name is a string only for the global admin viewer; otherwise null.
   const showRealName = entries.some(e => e.real_name != null)
   const colSpan = showRealName ? 4 : 3
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-x-auto">
-      <table className="w-full text-xs sm:text-sm">
-        <thead>
-          <tr className="border-b border-gray-100 dark:border-gray-700">
-            <th className="text-left text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 sm:px-4 py-2.5 sm:py-3 w-6 sm:w-8">#</th>
-            <th className="text-left text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 sm:px-4 py-2.5 sm:py-3">{showRealName ? 'Team' : 'Player'}</th>
-            {showRealName && (
-              <th className="text-left text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 sm:px-4 py-2.5 sm:py-3">Name</th>
-            )}
-            <th className="text-right text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-1.5 sm:px-3 py-2.5 sm:py-3">Played</th>
-            <th className="text-right text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 sm:px-4 py-2.5 sm:py-3">Pts</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((e, i) => (
-            <Fragment key={e.user_id}>
-              <tr
-                onClick={() => toggle(e.user_id)}
-                className={`border-b border-gray-50 dark:border-gray-700 cursor-pointer ${e.user_id === user?.id ? 'bg-green-50 dark:bg-green-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
-              >
-                <td className="px-2 sm:px-4 py-3 sm:py-3.5 text-gray-400 dark:text-gray-500">{ranks[i] === 1 ? '🥇' : ranks[i]}{e.rank_delta < 0 ? <span className="ml-1 text-green-500 text-[10px]">▲</span> : e.rank_delta > 0 ? <span className="ml-1 text-red-500 text-[10px]">▼</span> : null}</td>
-                <td className="px-2 sm:px-4 py-3 sm:py-3.5 font-medium text-gray-900 dark:text-white">
-                  {e.username}
-                  {e.user_id === user?.id && <span className="ml-1 sm:ml-1.5 text-[10px] sm:text-xs text-green-600 dark:text-green-400">(you)</span>}
-                </td>
-                {showRealName && (
-                  <td className="px-2 sm:px-4 py-3 sm:py-3.5 text-gray-500 dark:text-gray-400">{e.real_name}</td>
-                )}
-                <td className="px-1.5 sm:px-3 py-3 sm:py-3.5 text-right text-gray-500 dark:text-gray-400">{e.scored_count}</td>
-                <td className="px-2 sm:px-4 py-3 sm:py-3.5 text-right font-bold text-gray-900 dark:text-white">
-                  {e.total_points % 1 === 0 ? e.total_points.toFixed(0) : e.total_points.toFixed(2)}
-                  {e.bracket_bonus != null && (
-                    <span className="ml-1 text-[10px] sm:text-xs font-normal text-gray-400 dark:text-gray-500">({bracketLabel(e.bracket_bonus)})</span>
+    <>
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-x-auto">
+        <table className="w-full text-xs sm:text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 dark:border-gray-700">
+              <th className="text-left text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 sm:px-4 py-2.5 sm:py-3 w-6 sm:w-8">#</th>
+              <th className="text-left text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 sm:px-4 py-2.5 sm:py-3">{showRealName ? 'Team' : 'Player'}</th>
+              {showRealName && (
+                <th className="text-left text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 sm:px-4 py-2.5 sm:py-3">Name</th>
+              )}
+              <th className="text-right text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-1.5 sm:px-3 py-2.5 sm:py-3">Played</th>
+              <th className="text-right text-[10px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 sm:px-4 py-2.5 sm:py-3">Pts</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((e, i) => (
+              <Fragment key={e.user_id}>
+                <tr
+                  onClick={() => toggle(e.user_id)}
+                  className={`border-b border-gray-50 dark:border-gray-700 cursor-pointer ${e.user_id === user?.id ? 'bg-green-50 dark:bg-green-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
+                >
+                  <td className="px-2 sm:px-4 py-3 sm:py-3.5 text-gray-400 dark:text-gray-500">{ranks[i] === 1 ? '🥇' : ranks[i]}{e.rank_delta < 0 ? <span className="ml-1 text-green-500 text-[10px]">▲</span> : e.rank_delta > 0 ? <span className="ml-1 text-red-500 text-[10px]">▼</span> : null}</td>
+                  <td className="px-2 sm:px-4 py-3 sm:py-3.5 font-medium text-gray-900 dark:text-white">
+                    {e.username}
+                    {e.user_id === user?.id && <span className="ml-1 sm:ml-1.5 text-[10px] sm:text-xs text-green-600 dark:text-green-400">(you)</span>}
+                  </td>
+                  {showRealName && (
+                    <td className="px-2 sm:px-4 py-3 sm:py-3.5 text-gray-500 dark:text-gray-400">{e.real_name}</td>
                   )}
-                </td>
-              </tr>
-              {expanded.has(e.user_id) && (
-                <tr className="border-b border-gray-50 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-700/20">
-                  <td />
-                  <td colSpan={colSpan} className="px-2 sm:px-4 py-2 text-[10px] sm:text-xs text-gray-400 dark:text-gray-500">
-                    ⭐ {e.exact_count} exact &nbsp;·&nbsp; 🎯 {e.correct_gd_count} correct +GD &nbsp;·&nbsp; ✅ {e.correct_result_count} correct result
+                  <td className="px-1.5 sm:px-3 py-3 sm:py-3.5 text-right text-gray-500 dark:text-gray-400">{e.scored_count}</td>
+                  <td className="px-2 sm:px-4 py-3 sm:py-3.5 text-right font-bold text-gray-900 dark:text-white">
+                    {e.total_points % 1 === 0 ? e.total_points.toFixed(0) : e.total_points.toFixed(2)}
+                    {/* SF points annotation: shown while semis are in progress (not yet finished) */}
+                    {e.bracket_sf_points > 0 && !semisFinished ? (
+                      <button
+                        onClick={(ev) => openBracket(ev, e)}
+                        className="ml-1 text-[10px] sm:text-xs font-normal text-blue-500 dark:text-blue-400 hover:underline"
+                        title="View bracket prediction"
+                      >
+                        (+{e.bracket_sf_points} from semis)
+                      </button>
+                    ) : e.bracket_bonus != null ? (
+                      <button
+                        onClick={(ev) => openBracket(ev, e)}
+                        className="ml-1 text-[10px] sm:text-xs font-normal text-gray-400 dark:text-gray-500 hover:underline"
+                        title="View bracket prediction"
+                      >
+                        ({bracketLabel(e.bracket_bonus)})
+                      </button>
+                    ) : null}
                   </td>
                 </tr>
-              )}
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
-    </div>
+                {expanded.has(e.user_id) && (
+                  <tr className="border-b border-gray-50 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-700/20">
+                    <td />
+                    <td colSpan={colSpan} className="px-2 sm:px-4 py-2 text-[10px] sm:text-xs text-gray-400 dark:text-gray-500">
+                      ⭐ {e.exact_count} exact &nbsp;·&nbsp; 🎯 {e.correct_gd_count} correct +GD &nbsp;·&nbsp; ✅ {e.correct_result_count} correct result
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Read-only bracket modal for viewing another user's bracket */}
+      {bracketView && (
+        <BracketModal
+          readOnly
+          userId={bracketView.userId}
+          leagueId={leagueId}
+          onClose={() => setBracketView(null)}
+        />
+      )}
+    </>
   )
 }
