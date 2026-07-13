@@ -40,16 +40,17 @@ async def _semis_finished(db: AsyncSession) -> bool:
 
 
 async def _semis_revealed(db: AsyncSession) -> bool:
-    """Return True if at least one SEMI_FINALS fixture has kicked off (kickoff <= now UTC)."""
-    now_utc = datetime.utcnow()
+    """Return True once both SEMI_FINALS fixtures have their teams decided (TBD placeholders gone)."""
     result = await db.execute(
         select(Fixture).where(
             Fixture.stage == "SEMI_FINALS",
             Fixture.competition.contains("World Cup"),
-            Fixture.kickoff <= now_utc,
+            Fixture.home_team != "TBD",
+            Fixture.away_team != "TBD",
         )
     )
-    return result.scalar_one_or_none() is not None
+    semis = result.scalars().all()
+    return len(semis) >= 2
 
 
 @router.post("", response_model=LeagueOut)
