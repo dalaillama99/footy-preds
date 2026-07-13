@@ -65,7 +65,8 @@ async def create_league(
     await db.commit()
     await db.refresh(league)
     sf_done = await _semis_finished(db)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=1, created_at=league.created_at, semis_finished=sf_done)
+    sf_revealed = await _semis_revealed(db)
+    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=1, created_at=league.created_at, semis_finished=sf_done, semis_revealed=sf_revealed)
 
 
 @router.post("/join", response_model=LeagueOut)
@@ -89,7 +90,8 @@ async def join_league(
     await db.commit()
     count = await _member_count(db, league.id)
     sf_done = await _semis_finished(db)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done)
+    sf_revealed = await _semis_revealed(db)
+    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done, semis_revealed=sf_revealed)
 
 
 @router.get("", response_model=list[LeagueOut])
@@ -98,11 +100,12 @@ async def my_leagues(user: User = Depends(get_current_user), db: AsyncSession = 
         select(LeagueMember).where(LeagueMember.user_id == user.id).options(selectinload(LeagueMember.league))
     )
     sf_done = await _semis_finished(db)
+    sf_revealed = await _semis_revealed(db)
     leagues = []
     for m in memberships.scalars():
         count = await _member_count(db, m.league_id)
         league = m.league
-        leagues.append(LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done))
+        leagues.append(LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done, semis_revealed=sf_revealed))
     return leagues
 
 
@@ -121,7 +124,8 @@ async def get_league(league_id: str, user: User = Depends(get_current_user), db:
 
     count = await _member_count(db, league_id)
     sf_done = await _semis_finished(db)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done)
+    sf_revealed = await _semis_revealed(db)
+    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done, semis_revealed=sf_revealed)
 
 
 @router.patch("/{league_id}/settings", response_model=LeagueOut)
@@ -145,7 +149,8 @@ async def update_league_settings(
     await db.refresh(league)
     count = await _member_count(db, league_id)
     sf_done = await _semis_finished(db)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done)
+    sf_revealed = await _semis_revealed(db)
+    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done, semis_revealed=sf_revealed)
 
 
 @router.get("/{league_id}/leaderboard", response_model=list[LeaderboardEntry])

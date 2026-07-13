@@ -53,6 +53,7 @@ class LeagueOut(BaseModel):
     member_count: int
     created_at: datetime
     semis_finished: bool = False
+    semis_revealed: bool = False
 
 
 class LeagueSettingsUpdate(BaseModel):

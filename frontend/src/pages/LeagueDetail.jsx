@@ -134,7 +134,7 @@ function PredictionsTab({ leagueId }) {
   )
 }
 
-const TABS = ['Standings', 'Predictions', 'Members']
+const BASE_TABS = ['Standings', 'Predictions', 'Members']
 
 export default function LeagueDetail() {
   const { id } = useParams()
@@ -233,6 +233,8 @@ export default function LeagueDetail() {
   if (!league) return <p className="text-red-500 text-sm">League not found.</p>
 
   const isLeagueAdmin = league.admin_id === user?.id
+  const showSFTab = (league.semis_revealed ?? false) && !(league.semis_finished ?? false)
+  const TABS = showSFTab ? ['Standings', 'Semi Finals', 'Predictions', 'Members'] : BASE_TABS
 
   return (
     <div>
@@ -274,14 +276,15 @@ export default function LeagueDetail() {
 
       {/* Tab content */}
       {tab === 'Standings' && (
-        <>
-          <Leaderboard
-            entries={board}
-            leagueId={id}
-            semisFinished={league.semis_finished ?? false}
-          />
-          <SFPredictions leagueId={id} />
-        </>
+        <Leaderboard
+          entries={board}
+          leagueId={id}
+          semisFinished={league.semis_finished ?? false}
+        />
+      )}
+
+      {tab === 'Semi Finals' && (
+        <SFPredictions leagueId={id} />
       )}
 
       {tab === 'Predictions' && (
