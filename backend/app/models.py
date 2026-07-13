@@ -113,4 +113,6 @@ class BracketPrediction(Base):
     finalist1: Mapped[str] = mapped_column(String(100))
     finalist2: Mapped[str] = mapped_column(String(100))
     points: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sf_points: Mapped[float | None] = mapped_column(Float, nullable=True)
+    finalist_points: Mapped[float | None] = mapped_column(Float, nullable=True)
     submitted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
