@@ -3,7 +3,6 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import Leaderboard from '../components/Leaderboard'
-import SFPredictions from '../components/SFPredictions'
 
 function fmtKickoff(kickoff) {
   const d = new Date(kickoff + 'Z')
@@ -134,7 +133,7 @@ function PredictionsTab({ leagueId }) {
   )
 }
 
-const BASE_TABS = ['Standings', 'Predictions', 'Members']
+const TABS = ['Standings', 'Predictions', 'Members']
 
 export default function LeagueDetail() {
   const { id } = useParams()
@@ -233,8 +232,6 @@ export default function LeagueDetail() {
   if (!league) return <p className="text-red-500 text-sm">League not found.</p>
 
   const isLeagueAdmin = league.admin_id === user?.id
-  const showSFTab = (league.semis_revealed ?? false) && !(league.semis_finished ?? false)
-  const TABS = showSFTab ? ['Standings', 'Semi Finals', 'Predictions', 'Members'] : BASE_TABS
 
   return (
     <div>
@@ -283,9 +280,6 @@ export default function LeagueDetail() {
         />
       )}
 
-      {tab === 'Semi Finals' && (
-        <SFPredictions leagueId={id} />
-      )}
 
       {tab === 'Predictions' && (
         <PredictionsTab leagueId={id} />
