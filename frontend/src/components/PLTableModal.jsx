@@ -144,13 +144,26 @@ export default function PLTableModal() {
     }
   }
 
+  const handleClose = () => {
+    setShow(false)
+  }
+
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="bg-white dark:bg-gray-800 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[92vh] overflow-y-auto">
         <div className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-700">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-            🏆 Premier League table prediction
-          </h2>
+          <div className="flex items-start justify-between">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              🏆 Premier League table prediction
+            </h2>
+            <button
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none ml-4 mt-0.5"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
           <div className="text-sm text-gray-500 dark:text-gray-400 space-y-3">
             <p>Predict the final Premier League top 5 and bottom 3 (relegation) for the season. Enter now and it's locked in for good. 🔒</p>
             <ul className="space-y-1">
