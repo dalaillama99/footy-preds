@@ -71,6 +71,24 @@ async def _semis_revealed(db: AsyncSession) -> bool:
     return len(semis) >= 2
 
 
+async def _wc_final_kickoff(db: AsyncSession) -> datetime | None:
+    """Return the kickoff time of the finished World Cup FINAL fixture, or None if it
+    hasn't been played/finished yet (or doesn't exist). Used to gate whether a league's
+    bracket bonus should count: leagues created after the World Cup wrapped up shouldn't
+    have bracket points carrying over into their totals."""
+    result = await db.execute(
+        select(Fixture).where(
+            Fixture.stage == "FINAL",
+            Fixture.competition.contains("World Cup"),
+            Fixture.status == "FINISHED",
+        )
+    )
+    final_fixtures = result.scalars().all()
+    if not final_fixtures:
+        return None
+    return min(f.kickoff for f in final_fixtures)
+
+
 @router.post("", response_model=LeagueOut)
 async def create_league(
     data: LeagueCreate,
@@ -206,6 +224,13 @@ async def leaderboard(
     )
     all_members = members.scalars().all()
 
+    wc_final_kickoff = await _wc_final_kickoff(db)
+    include_bracket = (
+        wc_final_kickoff is None
+        or league.created_at is None
+        or league.created_at <= wc_final_kickoff
+    )
+
     now_utc = datetime.utcnow()
     recent_fix_q = select(Fixture).where(
         Fixture.kickoff >= now_utc - timedelta(hours=8),
@@ -239,19 +264,22 @@ async def leaderboard(
         correct_gd = sum(1 for p in preds if p.points is not None and 2.0 <= p.points < 3)
         correct_result = sum(1 for p in preds if p.points is not None and 1.5 <= p.points < 2.0)
 
-        # Bonus bracket points are global (same across all the user's leagues):
-        # add the scored bracket bonus into the displayed total.
-        bracket = (await db.execute(
-            select(BracketPrediction).where(BracketPrediction.user_id == m.user_id)
-        )).scalar_one_or_none()
+        # Bonus bracket points are global across all the user's leagues, but only count
+        # toward a league's total if that league existed on/before the World Cup final —
+        # otherwise a league created after the tournament ended would show bracket points
+        # for a tournament it never ran.
         bracket_bonus = None
         bracket_sf_pts = None
         bracket_finalist_pts = None
-        if bracket is not None and bracket.points is not None:
-            bracket_bonus = bracket.points
-            total += bracket.points
-            bracket_sf_pts = bracket.sf_points
-            bracket_finalist_pts = bracket.finalist_points
+        if include_bracket:
+            bracket = (await db.execute(
+                select(BracketPrediction).where(BracketPrediction.user_id == m.user_id)
+            )).scalar_one_or_none()
+            if bracket is not None and bracket.points is not None:
+                bracket_bonus = bracket.points
+                total += bracket.points
+                bracket_sf_pts = bracket.sf_points
+                bracket_finalist_pts = bracket.finalist_points
 
         entries.append(LeaderboardEntry(
             user_id=m.user_id,
@@ -285,11 +313,12 @@ async def leaderboard(
             prev_correct_gd = sum(1 for p in preds if p.points is not None and 2.0 <= p.points < 3)
             prev_correct_result = sum(1 for p in preds if p.points is not None and 1.5 <= p.points < 2.0)
 
-            bracket = (await db.execute(
-                select(BracketPrediction).where(BracketPrediction.user_id == m.user_id)
-            )).scalar_one_or_none()
-            if bracket is not None and bracket.points is not None:
-                total += bracket.points
+            if include_bracket:
+                bracket = (await db.execute(
+                    select(BracketPrediction).where(BracketPrediction.user_id == m.user_id)
+                )).scalar_one_or_none()
+                if bracket is not None and bracket.points is not None:
+                    total += bracket.points
 
             prev_entries.append((m.user_id, total, prev_exact, prev_correct_gd, prev_correct_result))
 
