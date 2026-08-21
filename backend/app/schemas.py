@@ -180,6 +180,64 @@ class BracketPredictionOut(BaseModel):
     submitted_at: datetime
 
 
+class PLTeam(BaseModel):
+    name: str
+    crest: Optional[str] = None
+
+
+class PLTablePredictionIn(BaseModel):
+    pos1: str
+    pos2: str
+    pos3: str
+    pos4: str
+    pos5: str
+    rel18: str
+    rel19: str
+    rel20: str
+
+
+class PLTablePredictionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    pos1: str
+    pos2: str
+    pos3: str
+    pos4: str
+    pos5: str
+    rel18: str
+    rel19: str
+    rel20: str
+    top5_points: Optional[float] = None
+    relegation_points: Optional[float] = None
+    points: Optional[float] = None
+    submitted_at: datetime
+
+
+class PLActualStandingsIn(BaseModel):
+    pos1: str
+    pos2: str
+    pos3: str
+    pos4: str
+    pos5: str
+    rel18: str
+    rel19: str
+    rel20: str
+
+
+class PLActualStandingsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    pos1: Optional[str] = None
+    pos2: Optional[str] = None
+    pos3: Optional[str] = None
+    pos4: Optional[str] = None
+    pos5: Optional[str] = None
+    rel18: Optional[str] = None
+    rel19: Optional[str] = None
+    rel20: Optional[str] = None
+    updated_at: datetime
+
+
 class MemberSemiPredictionOut(BaseModel):
     user_id: str
     username: str

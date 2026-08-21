@@ -118,3 +118,38 @@ class BracketPrediction(Base):
     sf_points: Mapped[float | None] = mapped_column(Float, nullable=True)
     finalist_points: Mapped[float | None] = mapped_column(Float, nullable=True)
     submitted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PLTablePrediction(Base):
+    __tablename__ = "pl_table_predictions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), unique=True)  # one prediction per user
+    pos1: Mapped[str] = mapped_column(String(100))
+    pos2: Mapped[str] = mapped_column(String(100))
+    pos3: Mapped[str] = mapped_column(String(100))
+    pos4: Mapped[str] = mapped_column(String(100))
+    pos5: Mapped[str] = mapped_column(String(100))
+    rel18: Mapped[str] = mapped_column(String(100))
+    rel19: Mapped[str] = mapped_column(String(100))
+    rel20: Mapped[str] = mapped_column(String(100))
+    top5_points: Mapped[float | None] = mapped_column(Float, nullable=True)
+    relegation_points: Mapped[float | None] = mapped_column(Float, nullable=True)
+    points: Mapped[float | None] = mapped_column(Float, nullable=True)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PLActualStandings(Base):
+    """Singleton table holding the admin-entered real final PL table for scoring."""
+    __tablename__ = "pl_actual_standings"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    pos1: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    pos2: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    pos3: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    pos4: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    pos5: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    rel18: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    rel19: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    rel20: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
