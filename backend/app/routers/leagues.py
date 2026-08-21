@@ -24,6 +24,24 @@ async def _member_count(db: AsyncSession, league_id: str) -> int:
     return result.scalar()
 
 
+def _build_league_out(league: League, user: User, count: int, sf_done: bool, sf_revealed: bool) -> LeagueOut:
+    # admin_invite_code is only ever shown to the league's own admin or a site admin —
+    # everyone else (including someone who just joined via that very code) gets null.
+    can_see_admin_code = league.admin_id == user.id or user.is_admin
+    return LeagueOut(
+        id=league.id,
+        name=league.name,
+        invite_code=league.invite_code,
+        admin_id=league.admin_id,
+        member_count=count,
+        created_at=league.created_at,
+        semis_finished=sf_done,
+        semis_revealed=sf_revealed,
+        max_participants=league.max_participants,
+        admin_invite_code=(league.admin_invite_code if can_see_admin_code else None),
+    )
+
+
 def _display_name(user: User) -> str:
     # Real (Google) names are always obscured behind team names; admins see the
     # real name separately via the `real_name` field, not in the main display.
@@ -59,14 +77,17 @@ async def create_league(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    league = League(id=str(uuid.uuid4()), name=data.name, admin_id=user.id)
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Only the site admin can create leagues")
+
+    league = League(id=str(uuid.uuid4()), name=data.name, admin_id=user.id, max_participants=data.max_participants)
     db.add(league)
     db.add(LeagueMember(id=str(uuid.uuid4()), user_id=user.id, league_id=league.id))
     await db.commit()
     await db.refresh(league)
     sf_done = await _semis_finished(db)
     sf_revealed = await _semis_revealed(db)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=1, created_at=league.created_at, semis_finished=sf_done, semis_revealed=sf_revealed)
+    return _build_league_out(league, user, 1, sf_done, sf_revealed)
 
 
 @router.post("/join", response_model=LeagueOut)
@@ -75,7 +96,10 @@ async def join_league(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(League).where(League.invite_code == data.invite_code.upper()))
+    code = data.invite_code.upper()
+    result = await db.execute(
+        select(League).where((League.invite_code == code) | (League.admin_invite_code == code))
+    )
     league = result.scalar_one_or_none()
     if not league:
         raise HTTPException(status_code=404, detail="League not found — check the invite code")
@@ -86,12 +110,20 @@ async def join_league(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="You're already in this league")
 
+    # The cap only applies when joining via the normal invite code — the admin
+    # veto code always bypasses it.
+    if code == league.invite_code:
+        if league.max_participants is not None:
+            count_so_far = await _member_count(db, league.id)
+            if count_so_far >= league.max_participants:
+                raise HTTPException(status_code=400, detail="League is full")
+
     db.add(LeagueMember(id=str(uuid.uuid4()), user_id=user.id, league_id=league.id))
     await db.commit()
     count = await _member_count(db, league.id)
     sf_done = await _semis_finished(db)
     sf_revealed = await _semis_revealed(db)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done, semis_revealed=sf_revealed)
+    return _build_league_out(league, user, count, sf_done, sf_revealed)
 
 
 @router.get("", response_model=list[LeagueOut])
@@ -105,7 +137,7 @@ async def my_leagues(user: User = Depends(get_current_user), db: AsyncSession = 
     for m in memberships.scalars():
         count = await _member_count(db, m.league_id)
         league = m.league
-        leagues.append(LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done, semis_revealed=sf_revealed))
+        leagues.append(_build_league_out(league, user, count, sf_done, sf_revealed))
     return leagues
 
 
@@ -125,7 +157,7 @@ async def get_league(league_id: str, user: User = Depends(get_current_user), db:
     count = await _member_count(db, league_id)
     sf_done = await _semis_finished(db)
     sf_revealed = await _semis_revealed(db)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done, semis_revealed=sf_revealed)
+    return _build_league_out(league, user, count, sf_done, sf_revealed)
 
 
 @router.patch("/{league_id}/settings", response_model=LeagueOut)
@@ -150,7 +182,7 @@ async def update_league_settings(
     count = await _member_count(db, league_id)
     sf_done = await _semis_finished(db)
     sf_revealed = await _semis_revealed(db)
-    return LeagueOut(id=league.id, name=league.name, invite_code=league.invite_code, admin_id=league.admin_id, member_count=count, created_at=league.created_at, semis_finished=sf_done, semis_revealed=sf_revealed)
+    return _build_league_out(league, user, count, sf_done, sf_revealed)
 
 
 @router.get("/{league_id}/leaderboard", response_model=list[LeaderboardEntry])

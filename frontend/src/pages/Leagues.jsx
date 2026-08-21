@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../api/client'
+import { useAuth } from '../context/AuthContext'
 
 export default function Leagues() {
+  const { user } = useAuth()
   const [leagues, setLeagues] = useState([])
   const [loading, setLoading] = useState(true)
   const [createName, setCreateName] = useState('')
+  const [maxParticipants, setMaxParticipants] = useState('')
   const [joinCode, setJoinCode] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -29,9 +32,12 @@ export default function Leagues() {
   const create = async (e) => {
     e.preventDefault()
     try {
-      const { data } = await api.post('/leagues', { name: createName })
+      const payload = { name: createName }
+      if (maxParticipants !== '') payload.max_participants = Number(maxParticipants)
+      const { data } = await api.post('/leagues', payload)
       setLeagues([...leagues, data])
       setCreateName('')
+      setMaxParticipants('')
       flash('League created!')
     } catch (err) {
       flash(err.response?.data?.detail || 'Failed to create league', true)
@@ -58,17 +64,24 @@ export default function Leagues() {
       {success && <p className="text-green-700 dark:text-green-400 text-sm mb-4 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg">{success}</p>}
 
       <div className="grid sm:grid-cols-2 gap-4 mb-8">
-        <form onSubmit={create} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
-          <h2 className="font-semibold text-gray-900 dark:text-white mb-3">Create a league</h2>
-          <input
-            required value={createName} onChange={e => setCreateName(e.target.value)}
-            placeholder="League name"
-            className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-          <button className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-lg transition">
-            Create
-          </button>
-        </form>
+        {user?.is_admin && (
+          <form onSubmit={create} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
+            <h2 className="font-semibold text-gray-900 dark:text-white mb-3">Create a league</h2>
+            <input
+              required value={createName} onChange={e => setCreateName(e.target.value)}
+              placeholder="League name"
+              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <input
+              type="number" min="1" value={maxParticipants} onChange={e => setMaxParticipants(e.target.value)}
+              placeholder="Max participants (optional)"
+              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <button className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-lg transition">
+              Create
+            </button>
+          </form>
+        )}
 
         <form onSubmit={join} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
           <h2 className="font-semibold text-gray-900 dark:text-white mb-3">Join a league</h2>
@@ -97,7 +110,9 @@ export default function Leagues() {
             >
               <div>
                 <p className="font-semibold text-gray-900 dark:text-white">{l.name}</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 font-mono">{l.invite_code} · {l.member_count} member{l.member_count !== 1 ? 's' : ''}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 font-mono">
+                  {l.invite_code} · {l.max_participants != null ? `${l.member_count} / ${l.max_participants} members` : `${l.member_count} member${l.member_count !== 1 ? 's' : ''}`}
+                </p>
               </div>
               <span className="text-gray-300 dark:text-gray-600">›</span>
             </Link>

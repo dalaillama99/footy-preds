@@ -30,8 +30,25 @@ async def init_db():
             "ALTER TABLE fixtures ADD COLUMN minute INTEGER",
             "ALTER TABLE bracket_predictions ADD COLUMN sf_points REAL",
             "ALTER TABLE bracket_predictions ADD COLUMN finalist_points REAL",
+            "ALTER TABLE leagues ADD COLUMN max_participants INTEGER",
+            "ALTER TABLE leagues ADD COLUMN admin_invite_code TEXT",
         ]:
             try:
                 await conn.execute(text(stmt))
             except Exception:
                 pass
+
+        # One-time backfill: pre-existing leagues (created before admin_invite_code
+        # existed) have NULL there after the ALTER above. Populate it, one row at a
+        # time. Safe/idempotent to re-run on every startup — WHERE admin_invite_code
+        # IS NULL means already-backfilled rows are skipped.
+        # Deferred import to avoid a circular import (models.py imports Base from
+        # this module at module load time).
+        from app.models import _invite_code
+
+        rows = await conn.execute(text("SELECT id FROM leagues WHERE admin_invite_code IS NULL"))
+        for (league_id,) in rows.fetchall():
+            await conn.execute(
+                text("UPDATE leagues SET admin_invite_code = :code WHERE id = :id"),
+                {"code": _invite_code(), "id": league_id},
+            )

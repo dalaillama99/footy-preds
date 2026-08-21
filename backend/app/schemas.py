@@ -38,6 +38,7 @@ class TeamNameUpdate(BaseModel):
 
 class LeagueCreate(BaseModel):
     name: str
+    max_participants: Optional[int] = Field(default=None, gt=0)
 
 
 class LeagueJoin(BaseModel):
@@ -54,6 +55,8 @@ class LeagueOut(BaseModel):
     created_at: datetime
     semis_finished: bool = False
     semis_revealed: bool = False
+    max_participants: Optional[int] = None
+    admin_invite_code: Optional[str] = None
 
 
 class LeagueSettingsUpdate(BaseModel):

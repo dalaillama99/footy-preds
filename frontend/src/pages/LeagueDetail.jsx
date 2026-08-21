@@ -146,6 +146,7 @@ export default function LeagueDetail() {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [adminCodeCopied, setAdminCodeCopied] = useState(false)
   const [leaveConfirm, setLeaveConfirm] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const [leaveError, setLeaveError] = useState('')
@@ -182,6 +183,12 @@ export default function LeagueDetail() {
     navigator.clipboard.writeText(league.invite_code)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const copyAdminCode = () => {
+    navigator.clipboard.writeText(league.admin_invite_code)
+    setAdminCodeCopied(true)
+    setTimeout(() => setAdminCodeCopied(false), 2000)
   }
 
   const leaveLeague = async () => {
@@ -241,7 +248,11 @@ export default function LeagueDetail() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{league.name}</h1>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{league.member_count} member{league.member_count !== 1 ? 's' : ''}</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">
+            {league.max_participants != null
+              ? `${league.member_count} / ${league.max_participants} members`
+              : `${league.member_count} member${league.member_count !== 1 ? 's' : ''}`}
+          </p>
         </div>
         <div className="text-right">
           <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">Invite code</p>
@@ -251,6 +262,17 @@ export default function LeagueDetail() {
           >
             {copied ? 'Copied!' : league.invite_code}
           </button>
+          {league.admin_invite_code != null && (
+            <div className="mt-2">
+              <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">Admin override code — bypasses the cap, do not share unless you want to let someone in over the limit</p>
+              <button
+                onClick={copyAdminCode}
+                className="font-mono text-sm bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-800 dark:text-amber-400 px-3 py-1.5 rounded-lg transition"
+              >
+                {adminCodeCopied ? 'Copied!' : league.admin_invite_code}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

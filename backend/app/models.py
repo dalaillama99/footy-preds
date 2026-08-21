@@ -40,6 +40,8 @@ class League(Base):
     invite_code: Mapped[str] = mapped_column(String(8), unique=True, default=_invite_code)
     admin_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    max_participants: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    admin_invite_code: Mapped[str | None] = mapped_column(String(8), nullable=True, default=_invite_code)
 
     members: Mapped[list["LeagueMember"]] = relationship(back_populates="league")
 
