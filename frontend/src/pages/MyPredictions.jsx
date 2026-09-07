@@ -29,7 +29,8 @@ function getBreakdown(homePred, awayPred, homeScore, awayScore) {
       parts.push('goal diff')
     }
   }
-  if (homePred + awayPred === homeScore + awayScore) parts.push('total goals')
+  if (homePred === homeScore) parts.push('home goals')
+  if (awayPred === awayScore) parts.push('away goals')
   return parts.length ? parts.join(' + ') : 'No match'
 }
 

@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import PLTableModal from '../components/PLTableModal'
 
 export default function Home() {
   const { user } = useAuth()
+  const [showReselect, setShowReselect] = useState(false)
 
   return (
     <div>
@@ -47,8 +50,16 @@ export default function Home() {
             Add fixtures, sync from football-data.org, set scores, and manage fixtures from the{' '}
             <Link to="/fixtures" className="underline font-medium">Fixtures</Link> page.
           </p>
+          <button
+            onClick={() => setShowReselect(true)}
+            className="mt-3 text-sm text-amber-800 dark:text-amber-400 underline font-medium"
+          >
+            Reselect my PL top-5 / relegation picks
+          </button>
         </div>
       )}
+
+      {showReselect && <PLTableModal editMode onClose={() => setShowReselect(false)} />}
 
       {/* How it works */}
       <div className="mt-12 space-y-8">
@@ -113,7 +124,7 @@ export default function Home() {
               <div>
                 <p className="font-semibold text-gray-900 dark:text-white">1.5 points — Correct result</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">You got the result right (home win / draw / away win).</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-mono">predicted 2–0, actual 1–0 → 1.5 pts</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-mono">predicted 2–1, actual 3–0 → 1.5 pts</p>
               </div>
             </div>
 
@@ -129,9 +140,9 @@ export default function Home() {
             <div className="flex items-start gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4">
               <span className="text-2xl">🔢</span>
               <div>
-                <p className="font-semibold text-gray-900 dark:text-white">+0.25 — Correct total goals</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">The total number of goals matches the actual total, regardless of result.</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-mono">predicted 2–1 (3 goals), actual 1–2 (3 goals) → +0.25</p>
+                <p className="font-semibold text-gray-900 dark:text-white">+0.25 — Correct team goal tally</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Either team's exact goal tally matches the actual, on top of anything else you got right.</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-mono">predicted 2–0, actual 2–1 → home goals matched (2) → 1.75 pts total (1.5 correct result + 0.25)</p>
               </div>
             </div>
 
@@ -139,7 +150,7 @@ export default function Home() {
               <span className="text-2xl">🏆</span>
               <div>
                 <p className="font-semibold text-gray-900 dark:text-white">+0.5 — Penalty winner (knockout games only)</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Predicting a draw requires you to pick the pen winner — getting it right adds 0.5 pts. Predicting a non-draw means no pen pick, but if your predicted team goes on to win on penalties, you still earn 0.5 pts. Total goals always count in penalty games.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Predicting a draw requires you to pick the pen winner — getting it right adds 0.5 pts. Predicting a non-draw means no pen pick, but if your predicted team goes on to win on penalties, you still earn 0.5 pts. Team goal tallies always count in penalty games too.</p>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-mono">exact draw + correct pen winner → 4 pts total</p>
               </div>
             </div>
@@ -207,23 +218,23 @@ export default function Home() {
                   </thead>
                   <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
                     <tr>
-                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Predicted team wins pens + total goals match</td>
-                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 3–1 Home, actual 2–2 Home pens</td>
+                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Predicted team wins pens + a team's goal tally correct</td>
+                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 2–1 Home, actual 2–2 Home pens</td>
                       <td className="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-white">0.75</td>
                     </tr>
                     <tr>
-                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Predicted team wins pens, no total goals match</td>
-                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 2–1 Home, actual 1–1 Home pens</td>
+                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Predicted team wins pens, no goal tally correct</td>
+                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 3–1 Home, actual 2–2 Home pens</td>
                       <td className="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-white">0.5</td>
                     </tr>
                     <tr>
-                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Predicted team loses pens + total goals match</td>
-                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 3–1 Home, actual 2–2 Away pens</td>
+                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Predicted team loses pens + a team's goal tally correct</td>
+                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 2–1 Home, actual 2–2 Away pens</td>
                       <td className="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-white">0.25</td>
                     </tr>
                     <tr>
-                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Predicted team loses pens, no total goals match</td>
-                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 2–1 Home, actual 1–1 Away pens</td>
+                      <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Predicted team loses pens, no goal tally correct</td>
+                      <td className="px-4 py-2.5 font-mono text-gray-400 hidden sm:table-cell">pred 3–1 Home, actual 2–2 Away pens</td>
                       <td className="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-white">0</td>
                     </tr>
                   </tbody>

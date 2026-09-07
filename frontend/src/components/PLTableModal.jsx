@@ -79,11 +79,16 @@ const RELEGATION_SLOTS = [
 ]
 const ALL_SLOTS = [...TOP5_SLOTS, ...RELEGATION_SLOTS]
 
-// One-shot admin-only popup: predict PL top-5 (positions 1-5, in order) and
-// relegation bottom-3 (positions 18-20, in order) for the season. Mirrors
-// BracketModal's submit-and-lock flow (GET /pl-table/me on mount — null
-// means show; submit sets show=false permanently and never shows again).
-export default function PLTableModal() {
+// One-shot popup (open to all users): predict PL top-5 (positions 1-5, in
+// order) and relegation bottom-3 (positions 18-20, in order) for the season.
+// Mirrors BracketModal's submit-and-lock flow (GET /pl-table/me on mount —
+// null means show; submit sets show=false permanently and never shows again).
+//
+// `editMode` supports a second, separately-mounted, admin-only "reselect"
+// instance (see Home.jsx): it bypasses the one-shot "already submitted"
+// early-return, always prefills from any existing prediction, and its submit
+// handler deletes-then-reposts instead of posting once and locking.
+export default function PLTableModal({ editMode = false, onClose }) {
   const { user } = useAuth()
   const [show, setShow] = useState(false)
   const [teams, setTeams] = useState([])
@@ -103,17 +108,24 @@ export default function PLTableModal() {
       try {
         const { data: existing } = await api.get('/pl-table/me')
         if (cancelled) return
-        if (existing) return // already submitted — never show again
+        if (existing && !editMode) return // already submitted — never show again
         const { data: teamList } = await api.get('/pl-table/teams')
         if (cancelled) return
         setTeams(teamList || [])
+        if (editMode && existing) {
+          setPicks({
+            pos1: existing.pos1 || '', pos2: existing.pos2 || '', pos3: existing.pos3 || '',
+            pos4: existing.pos4 || '', pos5: existing.pos5 || '',
+            rel18: existing.rel18 || '', rel19: existing.rel19 || '', rel20: existing.rel20 || '',
+          })
+        }
         setShow(true)
       } catch {
         // If we can't load, fail silent — don't block the app.
       }
     })()
     return () => { cancelled = true }
-  }, [user])
+  }, [user, editMode])
 
   if (!show) return null
 
@@ -135,17 +147,35 @@ export default function PLTableModal() {
     setSaving(true)
     setError('')
     try {
-      await api.post('/pl-table', { ...picks })
-      setShow(false) // one-shot — locked, never shown again
+      if (editMode) {
+        try {
+          await api.delete('/pl-table/me')
+        } catch (err) {
+          // 404 ("No prediction found") is expected/harmless the first time
+          // an admin uses the reselect flow before ever having submitted.
+          if (err.response?.status !== 404) throw err
+        }
+        await api.post('/pl-table', { ...picks })
+        if (onClose) onClose()
+      } else {
+        await api.post('/pl-table', { ...picks })
+        setShow(false) // one-shot — locked, never shown again
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to submit prediction')
+      // On failure, leave the modal open with the in-progress picks intact
+      // (especially important in editMode — don't discard the reselection).
     } finally {
       setSaving(false)
     }
   }
 
   const handleClose = () => {
-    setShow(false)
+    if (editMode) {
+      if (onClose) onClose()
+    } else {
+      setShow(false)
+    }
   }
 
   return (
@@ -167,7 +197,7 @@ export default function PLTableModal() {
           <div className="text-sm text-gray-500 dark:text-gray-400 space-y-3">
             <p>Predict the final Premier League top 5 and bottom 3 (relegation) for the season. Enter now and it's locked in for good. 🔒</p>
             <ul className="space-y-1">
-              <li>🎯 Exact position correct → <strong>+3 pts</strong> each</li>
+              <li>🎯 Exact position correct → <strong>+2 pts</strong> each</li>
               <li>🏅 Perfect top-5 (all 5 in order) → <strong>+5 pts</strong> bonus</li>
               <li>⚡ Perfect relegation-3 (all 3 in order) → <strong>+3 pts</strong> bonus</li>
             </ul>

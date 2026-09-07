@@ -32,7 +32,8 @@ function getPointsBreakdown(pred, fixture) {
       parts.push('goal diff +0.5')
     }
   }
-  if (home_pred + away_pred === home_score + away_score) parts.push('total goals +0.5')
+  if (home_pred === home_score) parts.push('home goals +0.25')
+  if (away_pred === away_score) parts.push('away goals +0.25')
   return parts.length ? parts.join(', ') : 'No match'
 }
 

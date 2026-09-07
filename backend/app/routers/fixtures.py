@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import get_current_user
 from app.config import settings
 from app.database import get_db
-from app.models import Fixture, Prediction, User
+from app.models import Fixture, League, Prediction, User
 from app.schemas import FixtureCreate, FixtureOut, FixtureScoreUpdate
 import json
 from datetime import timezone
@@ -146,6 +146,50 @@ async def recalculate_all_points(
         raise HTTPException(status_code=403, detail="Admin only")
 
     result = await db.execute(select(Fixture).where(Fixture.status == "FINISHED"))
+    fixtures = result.scalars().all()
+    fixtures_updated = predictions_updated = 0
+    for fixture in fixtures:
+        n = await _recalc_points(db, fixture)
+        if n:
+            fixtures_updated += 1
+            predictions_updated += n
+    await db.commit()
+    return {
+        "finished_fixtures": len(fixtures),
+        "fixtures_updated": fixtures_updated,
+        "predictions_updated": predictions_updated,
+    }
+
+
+@router.post("/recalculate-recent")
+async def recalculate_recent_points(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Recalculate points for finished fixtures relevant to recently-created leagues.
+
+    Scoped to leagues created in the last 7 days: finds the earliest such
+    league's created_at and recalculates every finished fixture from that
+    point on. No-op if no leagues were created in that window. Idempotent —
+    safe to run repeatedly. Narrower companion to /recalculate-all.
+    """
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    cutoff = datetime.utcnow() - timedelta(days=7)
+    result = await db.execute(select(League.created_at).where(League.created_at >= cutoff))
+    recent_created_ats = [row[0] for row in result.all()]
+    if not recent_created_ats:
+        return {
+            "finished_fixtures": 0,
+            "fixtures_updated": 0,
+            "predictions_updated": 0,
+        }
+
+    since = min(recent_created_ats)
+    result = await db.execute(
+        select(Fixture).where(Fixture.status == "FINISHED", Fixture.kickoff >= since)
+    )
     fixtures = result.scalars().all()
     fixtures_updated = predictions_updated = 0
     for fixture in fixtures:

@@ -46,7 +46,9 @@ def calculate_points(
         if pred_result == pen_winner_actual:
             points += 0.5
 
-    if pred_home + pred_away == actual_home + actual_away:
+    if pred_home == actual_home:
+        points += 0.25
+    if pred_away == actual_away:
         points += 0.25
 
     return points

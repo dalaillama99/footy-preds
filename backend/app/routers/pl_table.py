@@ -19,14 +19,15 @@ router = APIRouter(prefix="/pl-table", tags=["pl-table"])
 
 
 def _require_admin(user: User) -> None:
-    # Admin-only while in test (remove this guard to un-gate for all users).
+    # Used to gate the remaining admin-only administrative actions (deleting a
+    # prediction to allow re-submission, setting actual standings, scoring).
+    # Submission/viewing endpoints are open to all authenticated users.
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
 
 
 @router.get("/teams", response_model=list[PLTeam])
 async def list_teams(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    _require_admin(user)
     result = await db.execute(select(Fixture).where(Fixture.competition == "Premier League"))
     teams: dict[str, str | None] = {}
     for f in result.scalars():
@@ -40,7 +41,6 @@ async def list_teams(user: User = Depends(get_current_user), db: AsyncSession = 
 
 @router.get("/me", response_model=PLTablePredictionOut | None)
 async def my_pl_table(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    _require_admin(user)
     result = await db.execute(select(PLTablePrediction).where(PLTablePrediction.user_id == user.id))
     return result.scalar_one_or_none()
 
@@ -51,8 +51,6 @@ async def submit_pl_table(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    _require_admin(user)
-
     existing = await db.execute(select(PLTablePrediction).where(PLTablePrediction.user_id == user.id))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="You've already submitted your PL table prediction — it's locked")
@@ -151,9 +149,9 @@ async def score_pl_table(user: User = Depends(get_current_user), db: AsyncSessio
     """Admin action: compute points for ALL PL table predictions from the current PLActualStandings.
 
     Scoring:
-      - +3 for each of the 5 top-5 slots that exactly matches the actual position.
+      - +2 for each of the 5 top-5 slots that exactly matches the actual position.
       - +5 bonus if all 5 top-5 slots are correct.
-      - +3 for each of the 3 relegation slots that exactly matches the actual position.
+      - +2 for each of the 3 relegation slots that exactly matches the actual position.
       - +3 bonus if all 3 relegation slots are correct.
     Only computed once PLActualStandings has been set; otherwise every prediction's
     points fields are left/reset to null (matches bracket's "unscored" state).
@@ -183,12 +181,12 @@ async def score_pl_table(user: User = Depends(get_current_user), db: AsyncSessio
         relegation_pred = [p.rel18, p.rel19, p.rel20]
 
         top5_matches = sum(1 for pred, act in zip(top5_pred, top5_actual) if pred == act)
-        top5_pts = top5_matches * 3.0
+        top5_pts = top5_matches * 2.0
         if top5_matches == 5:
             top5_pts += 5.0
 
         relegation_matches = sum(1 for pred, act in zip(relegation_pred, relegation_actual) if pred == act)
-        relegation_pts = relegation_matches * 3.0
+        relegation_pts = relegation_matches * 2.0
         if relegation_matches == 3:
             relegation_pts += 3.0
 

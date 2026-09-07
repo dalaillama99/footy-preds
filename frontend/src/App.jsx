@@ -82,15 +82,16 @@ function PublicRoute({ children }) {
 function Layout({ children }) {
   const { user } = useAuth()
   // Onboarding sequence: team-name popup FIRST. Only once the user has a
-  // team_name do we surface the bonus bracket popup, the (admin-only while
-  // in test) PL table prediction popup, and the penalty-info popup.
+  // team_name do we surface the bonus bracket popup, the PL table prediction
+  // popup (now open to everyone, same tier as BracketModal — no admin gate),
+  // and the penalty-info popup.
   const needsTeamName = !user?.team_name
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
       {needsTeamName && <TeamNameModal />}
       {!needsTeamName && <BracketModal />}
-      {!needsTeamName && user?.is_admin && <PLTableModal />}
+      {!needsTeamName && <PLTableModal />}
       {!needsTeamName && <PenaltyInfoModal />}
       <main className="max-w-4xl mx-auto px-4 py-8">{children}</main>
     </div>
