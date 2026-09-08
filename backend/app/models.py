@@ -42,6 +42,12 @@ class League(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     max_participants: Mapped[int | None] = mapped_column(Integer, nullable=True)
     admin_invite_code: Mapped[str | None] = mapped_column(String(8), nullable=True, default=_invite_code)
+    # Comma-separated COMPETITIONS codes (e.g. "PL,CL") this league syncs/scores.
+    competitions: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Comma-separated team names restricting which CL fixtures count for this
+    # league. NULL = unrestricted (every CL fixture in scope, subject to the
+    # "CL" in competitions check in fixture_in_league_scope).
+    ucl_teams: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 
     members: Mapped[list["LeagueMember"]] = relationship(back_populates="league")
 
@@ -54,6 +60,7 @@ class LeagueMember(Base):
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"))
     league_id: Mapped[str] = mapped_column(String, ForeignKey("leagues.id"))
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False)
 
     user: Mapped["User"] = relationship(back_populates="memberships")
     league: Mapped["League"] = relationship(back_populates="members")
@@ -137,6 +144,25 @@ class PLTablePrediction(Base):
     relegation_points: Mapped[float | None] = mapped_column(Float, nullable=True)
     points: Mapped[float | None] = mapped_column(Float, nullable=True)
     submitted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class UclWinnerPrediction(Base):
+    __tablename__ = "ucl_winner_predictions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), unique=True)  # one pick per user
+    predicted_winner: Mapped[str] = mapped_column(String(100))
+    points: Mapped[float | None] = mapped_column(Float, nullable=True)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class UclActualWinner(Base):
+    """Singleton table holding the admin-entered real Champions League winner."""
+    __tablename__ = "ucl_actual_winner"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    winner: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class PLActualStandings(Base):

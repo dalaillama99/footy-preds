@@ -157,6 +157,10 @@ export default function LeagueDetail() {
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsError, setSettingsError] = useState('')
   const [settingsSaved, setSettingsSaved] = useState(false)
+  const [settingsCompetitions, setSettingsCompetitions] = useState([])
+  const [settingsUclTeams, setSettingsUclTeams] = useState([])
+  const [competitionsList, setCompetitionsList] = useState([]) // [{code, name}]
+  const [uclTeamsList, setUclTeamsList] = useState([]) // [{name, crest}]
 
   useEffect(() => {
     const fetch = async () => {
@@ -172,12 +176,30 @@ export default function LeagueDetail() {
         if (l.data.created_at) {
           setLeagueFromDate(toDatetimeLocal(l.data.created_at))
         }
+        setSettingsCompetitions(l.data.competitions || [])
+        setSettingsUclTeams(l.data.ucl_teams || [])
       } finally {
         setLoading(false)
       }
     }
     fetch()
   }, [id])
+
+  // League Settings pickers — only ever needed for the league's own admin, so
+  // gate fetching on that (compare directly rather than via the `isLeagueAdmin`
+  // const declared below, since that's computed after this component's early
+  // loading/not-found returns and hooks must run unconditionally above them).
+  useEffect(() => {
+    if (!league || league.admin_id !== user?.id) return
+    api.get('/fixtures/competitions').then(r => setCompetitionsList(r.data || [])).catch(() => {})
+  }, [league, user])
+
+  useEffect(() => {
+    if (!league || league.admin_id !== user?.id) return
+    if (!settingsCompetitions.includes('CL')) return
+    if (uclTeamsList.length > 0) return
+    api.get('/ucl/teams').then(r => setUclTeamsList(r.data || [])).catch(() => {})
+  }, [league, user, settingsCompetitions, uclTeamsList.length])
 
   const copyCode = () => {
     navigator.clipboard.writeText(league.invite_code)
@@ -215,14 +237,29 @@ export default function LeagueDetail() {
     }
   }
 
+  const toggleSettingsCompetition = (code) => {
+    setSettingsCompetitions(prev => {
+      const next = prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+      if (!next.includes('CL')) setSettingsUclTeams([])
+      return next
+    })
+  }
+
+  const toggleSettingsUclTeam = (name) => {
+    setSettingsUclTeams(prev => prev.includes(name) ? prev.filter(t => t !== name) : [...prev, name])
+  }
+
   const saveSettings = async (e) => {
     e.preventDefault()
     setSavingSettings(true)
     setSettingsError('')
     try {
-      const { data } = await api.patch(`/leagues/${id}/settings`, {
+      const payload = {
         created_at: new Date(leagueFromDate).toISOString(),
-      })
+        competitions: settingsCompetitions,
+        ucl_teams: settingsCompetitions.includes('CL') ? settingsUclTeams : null,
+      }
+      const { data } = await api.patch(`/leagues/${id}/settings`, payload)
       setLeague(data)
       const lb = await api.get(`/leagues/${id}/leaderboard`)
       setBoard(lb.data)
@@ -234,6 +271,9 @@ export default function LeagueDetail() {
       setSavingSettings(false)
     }
   }
+
+  const settingsSaveDisabled = savingSettings || settingsCompetitions.length === 0 ||
+    (settingsCompetitions.includes('CL') && settingsUclTeams.length === 0)
 
   if (loading) return <p className="text-gray-400 dark:text-gray-500 text-sm">Loading…</p>
   if (!league) return <p className="text-red-500 text-sm">League not found.</p>
@@ -362,28 +402,72 @@ export default function LeagueDetail() {
               {/* Admin: league settings */}
               <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
                 <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">League Settings</h3>
-                <form onSubmit={saveSettings} className="space-y-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <label className="text-xs text-gray-500 dark:text-gray-400">Count matches from:</label>
-                    <input
-                      type="datetime-local"
-                      value={leagueFromDate}
-                      onChange={e => setLeagueFromDate(e.target.value)}
-                      className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-500"
-                    />
+                <form onSubmit={saveSettings} className="space-y-4">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <label className="text-xs text-gray-500 dark:text-gray-400">Count matches from:</label>
+                      <input
+                        type="datetime-local"
+                        value={leagueFromDate}
+                        onChange={e => setLeagueFromDate(e.target.value)}
+                        className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-500"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                      Only fixtures after this date count toward standings.
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Competitions</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {competitionsList.map(c => (
+                        <label key={c.code} className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={settingsCompetitions.includes(c.code)}
+                            onChange={() => toggleSettingsCompetition(c.code)}
+                            className="accent-green-600"
+                          />
+                          {c.name}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {settingsCompetitions.includes('CL') && (
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Champions League teams</p>
+                      <div className="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg p-2">
+                        {uclTeamsList.map(t => (
+                          <label key={t.name} className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
+                            <input
+                              type="checkbox"
+                              checked={settingsUclTeams.includes(t.name)}
+                              onChange={() => toggleSettingsUclTeam(t.name)}
+                              className="accent-green-600"
+                            />
+                            {t.name}
+                          </label>
+                        ))}
+                      </div>
+                      {settingsUclTeams.length === 0 && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Select at least one Champions League team.</p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3">
                     <button
                       type="submit"
-                      disabled={savingSettings}
+                      disabled={settingsSaveDisabled}
                       className="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50"
                     >
                       {savingSettings ? '…' : settingsSaved ? 'Saved!' : 'Save'}
                     </button>
+                    {settingsError && <p className="text-red-500 text-xs">{settingsError}</p>}
                   </div>
-                  {settingsError && <p className="text-red-500 text-xs">{settingsError}</p>}
                 </form>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-                  Only fixtures after this date count toward standings. Updating refreshes the leaderboard.
-                </p>
               </div>
             </>
           )}

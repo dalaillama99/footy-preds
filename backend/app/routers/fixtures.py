@@ -3,16 +3,18 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.auth import get_current_user
 from app.config import settings
 from app.database import get_db
-from app.models import Fixture, League, Prediction, User
+from app.models import Fixture, League, LeagueMember, Prediction, User
 from app.schemas import FixtureCreate, FixtureOut, FixtureScoreUpdate
 import json
 from datetime import timezone
 
 from app.services.football_api import COMPETITIONS, _recalc_points, fetch_competition_matches, fetch_match_lineups, fetch_match_result, upsert_fixtures
+from app.services.league_scope import fixture_in_league_scope, parse_competitions, parse_ucl_teams
 from app.services.points import calculate_points
 
 router = APIRouter(prefix="/fixtures", tags=["fixtures"])
@@ -21,7 +23,31 @@ router = APIRouter(prefix="/fixtures", tags=["fixtures"])
 @router.get("", response_model=list[FixtureOut])
 async def list_fixtures(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Fixture).order_by(Fixture.kickoff))
-    return result.scalars().all()
+    all_fixtures = result.scalars().all()
+
+    # Admins keep the full, unfiltered list — they use this same endpoint for
+    # fixture management (edit/delete/score/sync), not just prediction entry.
+    if user.is_admin:
+        return all_fixtures
+
+    # Non-admins: only fixtures in scope for at least one of their non-archived
+    # leagues. Zero qualifying memberships → empty predictable fixture list.
+    memberships_result = await db.execute(
+        select(LeagueMember)
+        .where(LeagueMember.user_id == user.id, LeagueMember.archived == False)  # noqa: E712
+        .options(selectinload(LeagueMember.league))
+    )
+    qualifying_leagues = [
+        (parse_competitions(m.league.competitions), parse_ucl_teams(m.league.ucl_teams))
+        for m in memberships_result.scalars()
+    ]
+    if not qualifying_leagues:
+        return []
+
+    return [
+        f for f in all_fixtures
+        if any(fixture_in_league_scope(f, codes, ucl_teams) for codes, ucl_teams in qualifying_leagues)
+    ]
 
 
 @router.post("", response_model=FixtureOut)
@@ -163,20 +189,21 @@ async def recalculate_all_points(
 
 @router.post("/recalculate-recent")
 async def recalculate_recent_points(
+    days: int = 7,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Recalculate points for finished fixtures relevant to recently-created leagues.
 
-    Scoped to leagues created in the last 7 days: finds the earliest such
-    league's created_at and recalculates every finished fixture from that
-    point on. No-op if no leagues were created in that window. Idempotent —
-    safe to run repeatedly. Narrower companion to /recalculate-all.
+    Scoped to leagues created in the last `days` days (default 7): finds the
+    earliest such league's created_at and recalculates every finished fixture
+    from that point on. No-op if no leagues were created in that window.
+    Idempotent — safe to run repeatedly. Narrower companion to /recalculate-all.
     """
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
 
-    cutoff = datetime.utcnow() - timedelta(days=7)
+    cutoff = datetime.utcnow() - timedelta(days=days)
     result = await db.execute(select(League.created_at).where(League.created_at >= cutoff))
     recent_created_ats = [row[0] for row in result.all()]
     if not recent_created_ats:

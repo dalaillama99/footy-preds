@@ -3,6 +3,7 @@ import zoneinfo
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,8 +16,22 @@ from app.schemas import (
     LeagueOut, LeagueSettingsUpdate, LeaderboardEntry, LeagueMemberOut,
     MemberPredictionOut, MemberSemiPredictionOut,
 )
+from app.services.football_api import COMPETITIONS
+from app.services.league_scope import fixture_in_league_scope, parse_competitions, parse_ucl_teams
 
 router = APIRouter(prefix="/leagues", tags=["leagues"])
+
+
+class LeagueArchiveUpdate(BaseModel):
+    archived: bool
+
+
+def _validate_competitions(codes: list[str] | None, field: str = "competitions") -> None:
+    if not codes:
+        raise HTTPException(status_code=400, detail=f"Must select at least one competition")
+    invalid = [c for c in codes if c not in COMPETITIONS]
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"Unknown competition code(s): {', '.join(invalid)}")
 
 
 async def _member_count(db: AsyncSession, league_id: str) -> int:
@@ -24,7 +39,9 @@ async def _member_count(db: AsyncSession, league_id: str) -> int:
     return result.scalar()
 
 
-def _build_league_out(league: League, user: User, count: int, sf_done: bool, sf_revealed: bool) -> LeagueOut:
+def _build_league_out(
+    league: League, user: User, count: int, sf_done: bool, sf_revealed: bool, archived: bool
+) -> LeagueOut:
     # admin_invite_code is only ever shown to the league's own admin or a site admin —
     # everyone else (including someone who just joined via that very code) gets null.
     can_see_admin_code = league.admin_id == user.id or user.is_admin
@@ -39,6 +56,9 @@ def _build_league_out(league: League, user: User, count: int, sf_done: bool, sf_
         semis_revealed=sf_revealed,
         max_participants=league.max_participants,
         admin_invite_code=(league.admin_invite_code if can_see_admin_code else None),
+        competitions=sorted(parse_competitions(league.competitions)),
+        ucl_teams=(sorted(parse_ucl_teams(league.ucl_teams)) if parse_ucl_teams(league.ucl_teams) is not None else None),
+        archived=archived,
     )
 
 
@@ -98,14 +118,31 @@ async def create_league(
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Only the site admin can create leagues")
 
-    league = League(id=str(uuid.uuid4()), name=data.name, admin_id=user.id, max_participants=data.max_participants)
+    _validate_competitions(data.competitions)
+    ucl_teams_to_store: list[str] | None = None
+    if "CL" in data.competitions:
+        if not data.ucl_teams:
+            raise HTTPException(status_code=400, detail="Must choose at least one Champions League team")
+        ucl_teams_to_store = data.ucl_teams
+    # If CL isn't selected, ignore/null out any supplied ucl_teams — don't error.
+
+    league = League(
+        id=str(uuid.uuid4()),
+        name=data.name,
+        admin_id=user.id,
+        max_participants=data.max_participants,
+        competitions=",".join(data.competitions),
+        ucl_teams=(",".join(ucl_teams_to_store) if ucl_teams_to_store else None),
+    )
     db.add(league)
-    db.add(LeagueMember(id=str(uuid.uuid4()), user_id=user.id, league_id=league.id))
+    # archived=False passed as a literal — the column default only applies at
+    # flush/commit time, so reading it off the unflushed object would be None.
+    db.add(LeagueMember(id=str(uuid.uuid4()), user_id=user.id, league_id=league.id, archived=False))
     await db.commit()
     await db.refresh(league)
     sf_done = await _semis_finished(db)
     sf_revealed = await _semis_revealed(db)
-    return _build_league_out(league, user, 1, sf_done, sf_revealed)
+    return _build_league_out(league, user, 1, sf_done, sf_revealed, archived=False)
 
 
 @router.post("/join", response_model=LeagueOut)
@@ -136,12 +173,12 @@ async def join_league(
             if count_so_far >= league.max_participants:
                 raise HTTPException(status_code=400, detail="League is full")
 
-    db.add(LeagueMember(id=str(uuid.uuid4()), user_id=user.id, league_id=league.id))
+    db.add(LeagueMember(id=str(uuid.uuid4()), user_id=user.id, league_id=league.id, archived=False))
     await db.commit()
     count = await _member_count(db, league.id)
     sf_done = await _semis_finished(db)
     sf_revealed = await _semis_revealed(db)
-    return _build_league_out(league, user, count, sf_done, sf_revealed)
+    return _build_league_out(league, user, count, sf_done, sf_revealed, archived=False)
 
 
 @router.get("", response_model=list[LeagueOut])
@@ -155,7 +192,7 @@ async def my_leagues(user: User = Depends(get_current_user), db: AsyncSession = 
     for m in memberships.scalars():
         count = await _member_count(db, m.league_id)
         league = m.league
-        leagues.append(_build_league_out(league, user, count, sf_done, sf_revealed))
+        leagues.append(_build_league_out(league, user, count, sf_done, sf_revealed, archived=m.archived))
     return leagues
 
 
@@ -164,7 +201,8 @@ async def get_league(league_id: str, user: User = Depends(get_current_user), db:
     membership = await db.execute(
         select(LeagueMember).where(LeagueMember.user_id == user.id, LeagueMember.league_id == league_id)
     )
-    if not membership.scalar_one_or_none():
+    member = membership.scalar_one_or_none()
+    if not member:
         raise HTTPException(status_code=403, detail="Not a member of this league")
 
     result = await db.execute(select(League).where(League.id == league_id))
@@ -175,7 +213,7 @@ async def get_league(league_id: str, user: User = Depends(get_current_user), db:
     count = await _member_count(db, league_id)
     sf_done = await _semis_finished(db)
     sf_revealed = await _semis_revealed(db)
-    return _build_league_out(league, user, count, sf_done, sf_revealed)
+    return _build_league_out(league, user, count, sf_done, sf_revealed, archived=member.archived)
 
 
 @router.patch("/{league_id}/settings", response_model=LeagueOut)
@@ -192,15 +230,79 @@ async def update_league_settings(
     if league.admin_id != user.id and not user.is_admin:
         raise HTTPException(status_code=403, detail="Must be league admin to update settings")
 
-    # Store as UTC naive
-    dt = data.created_at
-    league.created_at = dt.replace(tzinfo=None) if dt.tzinfo else dt
+    if data.created_at is not None:
+        # Store as UTC naive
+        dt = data.created_at
+        league.created_at = dt.replace(tzinfo=None) if dt.tzinfo else dt
+
+    if data.competitions is not None:
+        _validate_competitions(data.competitions)
+        if "CL" in data.competitions:
+            # Grandfather nuance: if ucl_teams isn't being resupplied in this same
+            # request, fall back to whatever's already stored rather than demanding
+            # it be resupplied every time. Only 400 if the net result has no teams.
+            if data.ucl_teams is not None:
+                candidate_teams = data.ucl_teams
+            else:
+                candidate_teams = parse_ucl_teams(league.ucl_teams)
+            if not candidate_teams:
+                raise HTTPException(status_code=400, detail="Must choose at least one Champions League team")
+            league.competitions = ",".join(data.competitions)
+        else:
+            league.competitions = ",".join(data.competitions)
+            # CL no longer selected — null out any stored team subset, same as create_league.
+            league.ucl_teams = None
+
+    if data.ucl_teams is not None:
+        league.ucl_teams = ",".join(data.ucl_teams) if data.ucl_teams else None
+
     await db.commit()
     await db.refresh(league)
     count = await _member_count(db, league_id)
     sf_done = await _semis_finished(db)
     sf_revealed = await _semis_revealed(db)
-    return _build_league_out(league, user, count, sf_done, sf_revealed)
+
+    # This endpoint doesn't currently look up a LeagueMember at all — a site admin
+    # can legitimately call it for a league they've never joined. Add an explicit
+    # lookup here; fall back to archived=False (the harmless default) if the caller
+    # has no membership row.
+    membership = await db.execute(
+        select(LeagueMember).where(LeagueMember.user_id == user.id, LeagueMember.league_id == league_id)
+    )
+    member = membership.scalar_one_or_none()
+    archived = member.archived if member is not None else False
+
+    return _build_league_out(league, user, count, sf_done, sf_revealed, archived=archived)
+
+
+@router.patch("/{league_id}/archive", response_model=LeagueOut)
+async def archive_league(
+    league_id: str,
+    data: LeagueArchiveUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Archive/unarchive purely from the caller's own personal view of a league they
+    belong to — no special admin/creator permission needed."""
+    membership = await db.execute(
+        select(LeagueMember).where(LeagueMember.user_id == user.id, LeagueMember.league_id == league_id)
+    )
+    member = membership.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=404, detail="Not a member of this league")
+
+    result = await db.execute(select(League).where(League.id == league_id))
+    league = result.scalar_one_or_none()
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+
+    member.archived = data.archived
+    await db.commit()
+
+    count = await _member_count(db, league_id)
+    sf_done = await _semis_finished(db)
+    sf_revealed = await _semis_revealed(db)
+    return _build_league_out(league, user, count, sf_done, sf_revealed, archived=data.archived)
 
 
 @router.get("/{league_id}/leaderboard", response_model=list[LeaderboardEntry])
@@ -224,6 +326,11 @@ async def leaderboard(
     )
     all_members = members.scalars().all()
 
+    # Parsed once per call, not once per member — same "hoist outside the loop"
+    # discipline as _wc_final_kickoff below.
+    league_competitions = parse_competitions(league.competitions)
+    league_ucl_teams = parse_ucl_teams(league.ucl_teams)
+
     wc_final_kickoff = await _wc_final_kickoff(db)
     include_bracket = (
         wc_final_kickoff is None
@@ -238,7 +345,11 @@ async def leaderboard(
     )
     if league.created_at is not None:
         recent_fix_q = recent_fix_q.where(Fixture.kickoff >= league.created_at)
-    recent_fixtures = (await db.execute(recent_fix_q)).scalars().all()
+    recent_fixtures_all = (await db.execute(recent_fix_q)).scalars().all()
+    recent_fixtures = [
+        f for f in recent_fixtures_all
+        if fixture_in_league_scope(f, league_competitions, league_ucl_teams)
+    ]
 
     show_rank_changes = False
     day_start_utc = None
@@ -254,10 +365,11 @@ async def leaderboard(
     for m in all_members:
         pred_q = select(Prediction).join(Fixture, Fixture.id == Prediction.fixture_id).where(
             Prediction.user_id == m.user_id
-        )
+        ).options(selectinload(Prediction.fixture))
         if league.created_at is not None:
             pred_q = pred_q.where(Fixture.kickoff >= league.created_at)
-        preds = (await db.execute(pred_q)).scalars().all()
+        preds_all = (await db.execute(pred_q)).scalars().all()
+        preds = [p for p in preds_all if fixture_in_league_scope(p.fixture, league_competitions, league_ucl_teams)]
         total = sum(p.points or 0 for p in preds)
         scored = sum(1 for p in preds if p.points is not None)
         exact = sum(1 for p in preds if p.points is not None and p.points >= 3)
@@ -304,10 +416,11 @@ async def leaderboard(
             pred_q = select(Prediction).join(Fixture, Fixture.id == Prediction.fixture_id).where(
                 Prediction.user_id == m.user_id,
                 Fixture.kickoff < day_start_utc,
-            )
+            ).options(selectinload(Prediction.fixture))
             if league.created_at is not None:
                 pred_q = pred_q.where(Fixture.kickoff >= league.created_at)
-            preds = (await db.execute(pred_q)).scalars().all()
+            preds_all = (await db.execute(pred_q)).scalars().all()
+            preds = [p for p in preds_all if fixture_in_league_scope(p.fixture, league_competitions, league_ucl_teams)]
             total = sum(p.points or 0 for p in preds)
             prev_exact = sum(1 for p in preds if p.points is not None and p.points >= 3)
             prev_correct_gd = sum(1 for p in preds if p.points is not None and 2.0 <= p.points < 3)

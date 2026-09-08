@@ -5,6 +5,7 @@ import api from './api/client'
 import Navbar from './components/Navbar'
 import BracketModal from './components/BracketModal'
 import PLTableModal from './components/PLTableModal'
+import UclWinnerModal from './components/UclWinnerModal'
 import PenaltyInfoModal from './components/PenaltyInfoModal'
 import Login from './pages/Login'
 import AuthCallback from './pages/AuthCallback'
@@ -83,8 +84,8 @@ function Layout({ children }) {
   const { user } = useAuth()
   // Onboarding sequence: team-name popup FIRST. Only once the user has a
   // team_name do we surface the bonus bracket popup, the PL table prediction
-  // popup (now open to everyone, same tier as BracketModal — no admin gate),
-  // and the penalty-info popup.
+  // popup, the UCL winner-pick popup (all open to everyone, same tier — no
+  // admin gate), and the penalty-info popup.
   const needsTeamName = !user?.team_name
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -92,6 +93,7 @@ function Layout({ children }) {
       {needsTeamName && <TeamNameModal />}
       {!needsTeamName && <BracketModal />}
       {!needsTeamName && <PLTableModal />}
+      {!needsTeamName && <UclWinnerModal />}
       {!needsTeamName && <PenaltyInfoModal />}
       <main className="max-w-4xl mx-auto px-4 py-8">{children}</main>
     </div>

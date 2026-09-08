@@ -9,7 +9,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import AsyncSessionLocal, init_db
 from app.models import Fixture
-from app.routers import auth, bracket, fixtures, leagues, leaderboard, pl_table, predictions
+from app.routers import auth, bracket, fixtures, leagues, leaderboard, pl_table, predictions, ucl
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +143,7 @@ app.include_router(predictions.router)
 app.include_router(leaderboard.router)
 app.include_router(bracket.router)
 app.include_router(pl_table.router)
+app.include_router(ucl.router)
 
 
 @app.get("/health")

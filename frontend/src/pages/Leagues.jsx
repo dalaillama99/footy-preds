@@ -3,6 +3,33 @@ import { Link } from 'react-router-dom'
 import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
+// One league row — used in both the Active and Archived sections. The
+// Archive/Unarchive control sits outside the Link so it never triggers
+// navigation (nesting a <button> inside an <a> would be invalid markup).
+function LeagueRow({ league, onToggleArchive, archiving }) {
+  return (
+    <div className="flex items-center justify-between bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4 hover:border-green-400 dark:hover:border-green-600 hover:shadow-sm transition">
+      <Link to={`/leagues/${league.id}`} className="flex-1 min-w-0">
+        <p className="font-semibold text-gray-900 dark:text-white">{league.name}</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 font-mono">
+          {league.invite_code} · {league.max_participants != null ? `${league.member_count} / ${league.max_participants} members` : `${league.member_count} member${league.member_count !== 1 ? 's' : ''}`}
+        </p>
+      </Link>
+      <div className="flex items-center gap-3 shrink-0 ml-3">
+        <button
+          type="button"
+          onClick={() => onToggleArchive(league)}
+          disabled={archiving}
+          className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1 transition disabled:opacity-50"
+        >
+          {archiving ? '…' : league.archived ? 'Unarchive' : 'Archive'}
+        </button>
+        <Link to={`/leagues/${league.id}`} className="text-gray-300 dark:text-gray-600">›</Link>
+      </div>
+    </div>
+  )
+}
+
 export default function Leagues() {
   const { user } = useAuth()
   const [leagues, setLeagues] = useState([])
@@ -12,6 +39,14 @@ export default function Leagues() {
   const [joinCode, setJoinCode] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [archivingId, setArchivingId] = useState(null)
+
+  // Competitions multi-select + conditional CL-team multi-select, admin-only
+  // create form.
+  const [competitionsList, setCompetitionsList] = useState([]) // [{code, name}]
+  const [selectedCompetitions, setSelectedCompetitions] = useState([])
+  const [uclTeamsList, setUclTeamsList] = useState([]) // [{name, crest}]
+  const [selectedUclTeams, setSelectedUclTeams] = useState([])
 
   const fetchLeagues = async () => {
     try {
@@ -24,20 +59,47 @@ export default function Leagues() {
 
   useEffect(() => { fetchLeagues() }, [])
 
+  useEffect(() => {
+    if (!user?.is_admin) return
+    api.get('/fixtures/competitions').then(r => setCompetitionsList(r.data || [])).catch(() => {})
+  }, [user])
+
+  useEffect(() => {
+    if (!user?.is_admin) return
+    if (!selectedCompetitions.includes('CL')) return
+    if (uclTeamsList.length > 0) return
+    api.get('/ucl/teams').then(r => setUclTeamsList(r.data || [])).catch(() => {})
+  }, [user, selectedCompetitions, uclTeamsList.length])
+
   const flash = (msg, isError = false) => {
     if (isError) { setError(msg); setTimeout(() => setError(''), 4000) }
     else { setSuccess(msg); setTimeout(() => setSuccess(''), 4000) }
   }
 
+  const toggleCompetition = (code) => {
+    setSelectedCompetitions(prev => {
+      const next = prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+      if (!next.includes('CL')) setSelectedUclTeams([])
+      return next
+    })
+  }
+
+  const toggleUclTeam = (name) => {
+    setSelectedUclTeams(prev => prev.includes(name) ? prev.filter(t => t !== name) : [...prev, name])
+  }
+
   const create = async (e) => {
     e.preventDefault()
     try {
-      const payload = { name: createName }
+      const payload = { name: createName, competitions: selectedCompetitions }
       if (maxParticipants !== '') payload.max_participants = Number(maxParticipants)
+      if (selectedCompetitions.includes('CL')) payload.ucl_teams = selectedUclTeams
       const { data } = await api.post('/leagues', payload)
       setLeagues([...leagues, data])
       setCreateName('')
       setMaxParticipants('')
+      setSelectedCompetitions([])
+      setSelectedUclTeams([])
       flash('League created!')
     } catch (err) {
       flash(err.response?.data?.detail || 'Failed to create league', true)
@@ -55,6 +117,24 @@ export default function Leagues() {
       flash(err.response?.data?.detail || 'Failed to join league', true)
     }
   }
+
+  const toggleArchive = async (league) => {
+    setArchivingId(league.id)
+    try {
+      const { data } = await api.patch(`/leagues/${league.id}/archive`, { archived: !league.archived })
+      setLeagues(prev => prev.map(l => (l.id === league.id ? data : l)))
+    } catch (err) {
+      flash(err.response?.data?.detail || 'Failed to update league', true)
+    } finally {
+      setArchivingId(null)
+    }
+  }
+
+  const createDisabled = selectedCompetitions.length === 0 ||
+    (selectedCompetitions.includes('CL') && selectedUclTeams.length === 0)
+
+  const activeLeagues = leagues.filter(l => !l.archived)
+  const archivedLeagues = leagues.filter(l => l.archived)
 
   return (
     <div>
@@ -77,7 +157,45 @@ export default function Leagues() {
               placeholder="Max participants (optional)"
               className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
-            <button className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-lg transition">
+
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Competitions</p>
+            <div className="grid grid-cols-2 gap-1.5 mb-3">
+              {competitionsList.map(c => (
+                <label key={c.code} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={selectedCompetitions.includes(c.code)}
+                    onChange={() => toggleCompetition(c.code)}
+                    className="accent-green-600"
+                  />
+                  {c.name}
+                </label>
+              ))}
+            </div>
+
+            {selectedCompetitions.includes('CL') && (
+              <div className="mb-3">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Champions League teams</p>
+                <div className="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg p-2">
+                  {uclTeamsList.map(t => (
+                    <label key={t.name} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={selectedUclTeams.includes(t.name)}
+                        onChange={() => toggleUclTeam(t.name)}
+                        className="accent-green-600"
+                      />
+                      {t.name}
+                    </label>
+                  ))}
+                </div>
+                {selectedUclTeams.length === 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Select at least one Champions League team.</p>
+                )}
+              </div>
+            )}
+
+            <button disabled={createDisabled} className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
               Create
             </button>
           </form>
@@ -102,22 +220,30 @@ export default function Leagues() {
       ) : leagues.length === 0 ? (
         <p className="text-gray-400 dark:text-gray-500 text-sm">You're not in any leagues yet.</p>
       ) : (
-        <div className="space-y-3">
-          {leagues.map(l => (
-            <Link
-              key={l.id} to={`/leagues/${l.id}`}
-              className="flex items-center justify-between bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4 hover:border-green-400 dark:hover:border-green-600 hover:shadow-sm transition"
-            >
-              <div>
-                <p className="font-semibold text-gray-900 dark:text-white">{l.name}</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 font-mono">
-                  {l.invite_code} · {l.max_participants != null ? `${l.member_count} / ${l.max_participants} members` : `${l.member_count} member${l.member_count !== 1 ? 's' : ''}`}
-                </p>
+        <>
+          {activeLeagues.length === 0 ? (
+            <p className="text-gray-400 dark:text-gray-500 text-sm">No active leagues — check the archived section below.</p>
+          ) : (
+            <div className="space-y-3">
+              {activeLeagues.map(l => (
+                <LeagueRow key={l.id} league={l} onToggleArchive={toggleArchive} archiving={archivingId === l.id} />
+              ))}
+            </div>
+          )}
+
+          {archivedLeagues.length > 0 && (
+            <details className="mt-6">
+              <summary className="cursor-pointer text-sm font-medium text-gray-500 dark:text-gray-400 mb-3 select-none">
+                Archived ({archivedLeagues.length})
+              </summary>
+              <div className="space-y-3 mt-3">
+                {archivedLeagues.map(l => (
+                  <LeagueRow key={l.id} league={l} onToggleArchive={toggleArchive} archiving={archivingId === l.id} />
+                ))}
               </div>
-              <span className="text-gray-300 dark:text-gray-600">›</span>
-            </Link>
-          ))}
-        </div>
+            </details>
+          )}
+        </>
       )}
     </div>
   )

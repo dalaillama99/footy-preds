@@ -39,6 +39,8 @@ class TeamNameUpdate(BaseModel):
 class LeagueCreate(BaseModel):
     name: str
     max_participants: Optional[int] = Field(default=None, gt=0)
+    competitions: list[str]
+    ucl_teams: Optional[list[str]] = None
 
 
 class LeagueJoin(BaseModel):
@@ -57,10 +59,15 @@ class LeagueOut(BaseModel):
     semis_revealed: bool = False
     max_participants: Optional[int] = None
     admin_invite_code: Optional[str] = None
+    competitions: list[str] = []
+    ucl_teams: Optional[list[str]] = None
+    archived: bool = False
 
 
 class LeagueSettingsUpdate(BaseModel):
-    created_at: datetime
+    created_at: Optional[datetime] = None
+    competitions: Optional[list[str]] = None
+    ucl_teams: Optional[list[str]] = None
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -262,3 +269,28 @@ class MemberPredictionOut(BaseModel):
 class FixturePredictionsOut(BaseModel):
     fixture: FixtureOut
     predictions: list[MemberPredictionOut]
+
+
+# ── UCL winner prediction ──────────────────────────────────────────────────────
+
+class UclWinnerPredictionIn(BaseModel):
+    predicted_winner: str
+
+
+class UclWinnerPredictionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    predicted_winner: str
+    points: Optional[float] = None
+    submitted_at: datetime
+
+
+class UclActualWinnerIn(BaseModel):
+    winner: str
+
+
+class UclActualWinnerOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    winner: Optional[str] = None
+    updated_at: datetime
