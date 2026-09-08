@@ -10,10 +10,14 @@ admin can type anything into. So competition matching here uses keyword
 substring matching (`Fixture.competition.contains(keyword)`), never exact
 equality — see COMPETITION_KEYWORDS below.
 
-This module is imported by `app.routers.leagues`, `app.routers.fixtures`,
-`app.routers.ucl`, and (via a deferred import to avoid a circular import)
-`app.database`'s startup backfill. Do not reimplement this matching logic
-anywhere else.
+This module is imported by `app.routers.leagues`, `app.routers.fixtures`, and
+`app.routers.ucl` — for scoping fixtures/predictions to a league's chosen
+competitions, and (in `app.routers.fixtures`) for grouping fixtures by
+competition code when deciding which competitions are currently "active" for
+`POST /fixtures/recalculate-recent`. `app.database`'s startup backfill no
+longer imports from here — it now sets every NULL `League.competitions` to
+the full set of known competition codes unconditionally, with no per-league
+derivation. Do not reimplement this matching logic anywhere else.
 """
 
 # Maps every `COMPETITIONS` code (see app.services.football_api) to a short,

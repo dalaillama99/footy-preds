@@ -57,34 +57,23 @@ async def init_db():
             )
 
         # One-time backfill: pre-existing leagues (created before `competitions`
-        # existed) have NULL there after the ALTER above. Data-driven, per league —
-        # NOT a blanket "all competitions" default — derived from the same
-        # kickoff >= league.created_at window `leaderboard()` already uses to decide
-        # what counts for that league today, so nothing a league was already
-        # scoring on stops scoring on it. Safe/idempotent to re-run on every
-        # startup — WHERE competitions IS NULL means already-backfilled rows are
-        # skipped. Deferred imports to avoid circular imports (both COMPETITIONS
-        # and COMPETITION_KEYWORDS live outside app.models, and app.database is a
-        # low-level module other things import from).
+        # existed) have NULL there after the ALTER above. Uniform default — ALL
+        # known COMPETITIONS codes, unconditionally, no fixture-history query.
+        # This honestly represents what was actually true before this feature
+        # existed: every league implicitly covered every synced competition, so
+        # there's no real per-league "intent" to reconstruct from fixture data
+        # (a prior fixture-history-derived backfill was tried and found to just
+        # reconstruct "whatever happened to be synced during that window", which
+        # nobody actually chose — see POST /leagues/reset-competitions-to-all for
+        # the one-time corrective re-run against leagues that already got that
+        # stale derived value). Safe/idempotent to re-run on every startup —
+        # WHERE competitions IS NULL means already-backfilled rows are skipped.
+        # Deferred import to avoid a circular import (COMPETITIONS lives outside
+        # app.models, and app.database is a low-level module other things import
+        # from).
         from app.services.football_api import COMPETITIONS
-        from app.services.league_scope import COMPETITION_KEYWORDS
 
-        rows = await conn.execute(
-            text("SELECT id, created_at FROM leagues WHERE competitions IS NULL")
+        await conn.execute(
+            text("UPDATE leagues SET competitions = :competitions WHERE competitions IS NULL"),
+            {"competitions": ",".join(COMPETITIONS.keys())},
         )
-        for league_id, created_at in rows.fetchall():
-            name_rows = await conn.execute(
-                text("SELECT DISTINCT competition FROM fixtures WHERE kickoff >= :created_at"),
-                {"created_at": created_at},
-            )
-            distinct_names = [r[0] for r in name_rows.fetchall() if r[0]]
-            codes = [
-                code for code, keyword in COMPETITION_KEYWORDS.items()
-                if any(keyword in name for name in distinct_names)
-            ]
-            if not codes:
-                codes = list(COMPETITIONS.keys())
-            await conn.execute(
-                text("UPDATE leagues SET competitions = :competitions WHERE id = :id"),
-                {"competitions": ",".join(codes), "id": league_id},
-            )

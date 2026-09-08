@@ -8,13 +8,13 @@ from sqlalchemy.orm import selectinload
 from app.auth import get_current_user
 from app.config import settings
 from app.database import get_db
-from app.models import Fixture, League, LeagueMember, Prediction, User
+from app.models import Fixture, LeagueMember, Prediction, User
 from app.schemas import FixtureCreate, FixtureOut, FixtureScoreUpdate
 import json
 from datetime import timezone
 
 from app.services.football_api import COMPETITIONS, _recalc_points, fetch_competition_matches, fetch_match_lineups, fetch_match_result, upsert_fixtures
-from app.services.league_scope import fixture_in_league_scope, parse_competitions, parse_ucl_teams
+from app.services.league_scope import COMPETITION_KEYWORDS, fixture_in_league_scope, match_competition_code, parse_competitions, parse_ucl_teams
 from app.services.points import calculate_points
 
 router = APIRouter(prefix="/fixtures", tags=["fixtures"])
@@ -193,31 +193,60 @@ async def recalculate_recent_points(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Recalculate points for finished fixtures relevant to recently-created leagues.
+    """Recalculate points for finished fixtures in currently-active competitions.
 
-    Scoped to leagues created in the last `days` days (default 7): finds the
-    earliest such league's created_at and recalculates every finished fixture
-    from that point on. No-op if no leagues were created in that window.
-    Idempotent — safe to run repeatedly. Narrower companion to /recalculate-all.
+    Competition-scoped, not league-scoped: a competition (identified via
+    COMPETITION_KEYWORDS) is "eligible" for this run if it has at least one
+    Fixture row — any status, SCHEDULED counts too — with kickoff within the
+    last `days` days (default 7). This is an activity check, not a "when did
+    this competition start" check, so it stays correct across multiple synced
+    seasons of the same competition: old-season rows sitting in the table
+    never permanently disqualify a competition, because eligibility only asks
+    "is there something in the recent window right now."
+
+    Once a competition is judged eligible, ALL of its FINISHED fixtures get
+    recalculated — not just the ones within the window. This is deliberate:
+    eligibility (is this competition currently live/relevant) and scope (which
+    of its fixtures get touched) are separate decisions that happen to share a
+    window for different purposes.
+
+    A FINISHED fixture whose `competition` string matches no known keyword
+    (fail-open case) has no competition to group into, so it falls back to its
+    own kickoff against the same cutoff — treated as its own single-fixture
+    "competition".
+
+    League creation dates play no role here at all. Idempotent — safe to run
+    repeatedly. Narrower companion to /recalculate-all.
     """
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
 
     cutoff = datetime.utcnow() - timedelta(days=days)
-    result = await db.execute(select(League.created_at).where(League.created_at >= cutoff))
-    recent_created_ats = [row[0] for row in result.all()]
-    if not recent_created_ats:
-        return {
-            "finished_fixtures": 0,
-            "fixtures_updated": 0,
-            "predictions_updated": 0,
-        }
 
-    since = min(recent_created_ats)
-    result = await db.execute(
-        select(Fixture).where(Fixture.status == "FINISHED", Fixture.kickoff >= since)
-    )
-    fixtures = result.scalars().all()
+    eligible_codes: set[str] = set()
+    for code, keyword in COMPETITION_KEYWORDS.items():
+        exists_result = await db.execute(
+            select(Fixture.id)
+            .where(Fixture.competition.contains(keyword), Fixture.kickoff >= cutoff)
+            .limit(1)
+        )
+        if exists_result.first() is not None:
+            eligible_codes.add(code)
+
+    result = await db.execute(select(Fixture).where(Fixture.status == "FINISHED"))
+    all_finished = result.scalars().all()
+
+    fixtures = []
+    for fixture in all_finished:
+        code = match_competition_code(fixture.competition)
+        if code is None:
+            # Unrecognized competition string — treat as its own single-fixture
+            # "competition", scoped by its own kickoff.
+            if fixture.kickoff >= cutoff:
+                fixtures.append(fixture)
+        elif code in eligible_codes:
+            fixtures.append(fixture)
+
     fixtures_updated = predictions_updated = 0
     for fixture in fixtures:
         n = await _recalc_points(db, fixture)

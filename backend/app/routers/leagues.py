@@ -145,6 +145,38 @@ async def create_league(
     return _build_league_out(league, user, 1, sf_done, sf_revealed, archived=False)
 
 
+@router.post("/reset-competitions-to-all")
+async def reset_competitions_to_all(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin-only, one-time corrective tool: unconditionally set `competitions` to
+    ALL known COMPETITIONS codes for EVERY league in the database — not gated on
+    `competitions IS NULL` like the passive startup backfill in `init_db()`. That
+    passive backfill only fills in leagues that are still NULL; it deliberately
+    does not touch leagues that already got a value from a previous (now
+    considered wrong) fixture-history-derived backfill. This endpoint is the
+    deliberate, explicit way to correct those already-backfilled leagues back to
+    the uniform "every competition" default.
+
+    WARNING: this overwrites `competitions` for every league unconditionally,
+    including any league whose competitions were already manually customized by
+    its creator (or a site admin) via PATCH /leagues/{id}/settings. Run this only
+    when you intend that reset — it is not run automatically as part of any
+    migration.
+    """
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    all_codes = ",".join(COMPETITIONS.keys())
+    result = await db.execute(select(League))
+    leagues = result.scalars().all()
+    for league in leagues:
+        league.competitions = all_codes
+    await db.commit()
+    return {"leagues_updated": len(leagues)}
+
+
 @router.post("/join", response_model=LeagueOut)
 async def join_league(
     data: LeagueJoin,
