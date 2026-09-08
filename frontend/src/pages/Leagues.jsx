@@ -176,6 +176,7 @@ export default function Leagues() {
             {selectedCompetitions.includes('CL') && (
               <div className="mb-3">
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Champions League teams</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-1.5">Only Champions League games between two teams you select here will be shown or count for this league.</p>
                 <div className="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg p-2">
                   {uclTeamsList.map(t => (
                     <label key={t.name} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">

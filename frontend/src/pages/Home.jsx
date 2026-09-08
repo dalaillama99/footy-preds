@@ -244,6 +244,86 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Section 4: Bonus Predictions */}
+        <section>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Bonus predictions</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Alongside match predictions, there are three long-range picks worth bonus points. Unlike match predictions, these are one-shot — enter once and it's locked in for good, no editing later.</p>
+
+          <div className="space-y-3">
+            <div className="flex items-start gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4">
+              <span className="text-2xl">🏆</span>
+              <div>
+                <p className="font-semibold text-gray-900 dark:text-white">World Cup bracket</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Predict the semi-finalists and finalists. Points land in your league standings at the end of the tournament.</p>
+                <ul className="text-xs text-gray-400 dark:text-gray-500 mt-1 space-y-0.5">
+                  <li>🎯 1 correct semi-final → <strong>+1 pt</strong></li>
+                  <li>🎯🎯 Both correct semis → <strong>+3 pts</strong></li>
+                  <li>🏆 Both correct finalists → <strong>+3 pts</strong></li>
+                  <li>⚡ Bonus for getting both phases right → <strong>+3 pts</strong></li>
+                  <li className="font-semibold text-gray-600 dark:text-gray-300">Max total: <strong>9 pts</strong></li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4">
+              <span className="text-2xl">📊</span>
+              <div>
+                <p className="font-semibold text-gray-900 dark:text-white">Premier League top-5 / relegation</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Predict the final Premier League top 5 and bottom 3 (relegation) for the season.</p>
+                <ul className="text-xs text-gray-400 dark:text-gray-500 mt-1 space-y-0.5">
+                  <li>🎯 Exact position correct → <strong>+2 pts</strong> each</li>
+                  <li>🏅 Perfect top-5 (all 5 in order) → <strong>+5 pts</strong> bonus</li>
+                  <li>⚡ Perfect relegation-3 (all 3 in order) → <strong>+3 pts</strong> bonus</li>
+                  <li className="font-semibold text-gray-600 dark:text-gray-300">Max total: <strong>24 pts</strong></li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4">
+              <span className="text-2xl">🏅</span>
+              <div>
+                <p className="font-semibold text-gray-900 dark:text-white">Champions League winner</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Predict which team wins the Champions League this season.</p>
+                <ul className="text-xs text-gray-400 dark:text-gray-500 mt-1 space-y-0.5">
+                  <li>🏅 Correct winner → <strong>+5 pts if correct</strong></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 5: Leagues & Competitions */}
+        <section>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Leagues & competitions</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">How competitions are scoped to each league.</p>
+
+          <div className="space-y-3">
+            <div className="flex items-start gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4">
+              <span className="text-2xl">⚙️</span>
+              <div>
+                <p className="font-semibold text-gray-900 dark:text-white">Competitions are chosen per league</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">When a league is created, its creator picks which competitions it covers (Premier League, Champions League, World Cup, etc). This can be changed later by the league's creator or the site admin via League Settings.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4">
+              <span className="text-2xl">🔍</span>
+              <div>
+                <p className="font-semibold text-gray-900 dark:text-white">Only chosen competitions count</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Only fixtures in a league's chosen competitions show up for its members to predict on, and only those fixtures count toward that league's standings.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-5 py-4">
+              <span className="text-2xl">🌍</span>
+              <div>
+                <p className="font-semibold text-gray-900 dark:text-white">Champions League team pools</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">If a league includes the Champions League, its creator also picks a specific pool of CL teams for that league. Only Champions League games between two teams that are both in that pool are shown, predicted, or counted for that league — a CL game where even one side isn't in the pool doesn't appear at all for that league's members.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
       </div>
     </div>
   )
