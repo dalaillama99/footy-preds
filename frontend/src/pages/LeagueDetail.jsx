@@ -185,17 +185,18 @@ export default function LeagueDetail() {
     fetch()
   }, [id])
 
-  // League Settings pickers — only ever needed for the league's own admin, so
-  // gate fetching on that (compare directly rather than via the `isLeagueAdmin`
-  // const declared below, since that's computed after this component's early
-  // loading/not-found returns and hooks must run unconditionally above them).
+  // League Settings pickers — only ever needed for users who can manage the
+  // league (its creator, or a site admin), so gate fetching on that (compare
+  // directly rather than via the `canManageLeague` const declared below, since
+  // that's computed after this component's early loading/not-found returns
+  // and hooks must run unconditionally above them).
   useEffect(() => {
-    if (!league || league.admin_id !== user?.id) return
+    if (!league || (league.admin_id !== user?.id && !user?.is_admin)) return
     api.get('/fixtures/competitions').then(r => setCompetitionsList(r.data || [])).catch(() => {})
   }, [league, user])
 
   useEffect(() => {
-    if (!league || league.admin_id !== user?.id) return
+    if (!league || (league.admin_id !== user?.id && !user?.is_admin)) return
     if (!settingsCompetitions.includes('CL')) return
     if (uclTeamsList.length > 0) return
     api.get('/ucl/teams').then(r => setUclTeamsList(r.data || [])).catch(() => {})
@@ -278,7 +279,8 @@ export default function LeagueDetail() {
   if (loading) return <p className="text-gray-400 dark:text-gray-500 text-sm">Loading…</p>
   if (!league) return <p className="text-red-500 text-sm">League not found.</p>
 
-  const isLeagueAdmin = league.admin_id === user?.id
+  const isLeagueCreator = league.admin_id === user?.id
+  const canManageLeague = isLeagueCreator || user?.is_admin
 
   return (
     <div>
@@ -360,7 +362,7 @@ export default function LeagueDetail() {
                   {m.user_id === user?.id && <span className="text-xs text-green-600 dark:text-green-400">(you)</span>}
                   {m.is_league_admin && <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Admin</span>}
                 </div>
-                {isLeagueAdmin && m.user_id !== user?.id && (
+                {canManageLeague && m.user_id !== user?.id && (
                   <button
                     onClick={() => kickMember(m.user_id)}
                     disabled={kickingId === m.user_id}
@@ -373,7 +375,7 @@ export default function LeagueDetail() {
             ))}
           </div>
 
-          {!isLeagueAdmin && (
+          {!isLeagueCreator && (
             <div className="border-t border-gray-100 dark:border-gray-700 pt-6">
               {leaveError && <p className="text-red-500 text-xs mb-2">{leaveError}</p>}
               {leaveConfirm ? (
@@ -393,12 +395,14 @@ export default function LeagueDetail() {
             </div>
           )}
 
-          {isLeagueAdmin && (
-            <>
-              <p className="text-xs text-gray-400 dark:text-gray-500 border-t border-gray-100 dark:border-gray-700 pt-4">
-                You are the league admin — you cannot leave this league.
-              </p>
+          {isLeagueCreator && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 border-t border-gray-100 dark:border-gray-700 pt-4">
+              You are the league admin — you cannot leave this league.
+            </p>
+          )}
 
+          {canManageLeague && (
+            <>
               {/* Admin: league settings */}
               <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
                 <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">League Settings</h3>
