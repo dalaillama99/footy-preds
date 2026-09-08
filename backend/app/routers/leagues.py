@@ -585,7 +585,12 @@ async def league_fixture_predictions(
     fixtures_result = await db.execute(
         select(Fixture).where(*conditions).order_by(Fixture.kickoff.desc())
     )
-    fixtures = fixtures_result.scalars().all()
+    league_competitions = parse_competitions(league.competitions)
+    league_ucl_teams = parse_ucl_teams(league.ucl_teams)
+    fixtures = [
+        f for f in fixtures_result.scalars()
+        if fixture_in_league_scope(f, league_competitions, league_ucl_teams)
+    ]
     if not fixtures:
         return []
 

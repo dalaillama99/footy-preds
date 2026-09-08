@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.auth import get_current_user, get_effective_is_admin
+from app.auth import get_current_user
 from app.config import settings
 from app.database import get_db
 from app.models import Fixture, LeagueMember, Prediction, User
@@ -23,20 +23,14 @@ router = APIRouter(prefix="/fixtures", tags=["fixtures"])
 @router.get("", response_model=list[FixtureOut])
 async def list_fixtures(
     user: User = Depends(get_current_user),
-    effective_is_admin: bool = Depends(get_effective_is_admin),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Fixture).order_by(Fixture.kickoff))
     all_fixtures = result.scalars().all()
 
-    # Admins keep the full, unfiltered list — they use this same endpoint for
-    # fixture management (edit/delete/score/sync), not just prediction entry.
-    # Response-shaping only — respects preview mode via effective_is_admin.
-    if effective_is_admin:
-        return all_fixtures
-
-    # Non-admins: only fixtures in scope for at least one of their non-archived
-    # leagues. Zero qualifying memberships → empty predictable fixture list.
+    # Every caller — admin or not — is scoped to the union of their non-archived
+    # leagues' (competitions, ucl_teams). Zero qualifying memberships → empty
+    # predictable fixture list.
     memberships_result = await db.execute(
         select(LeagueMember)
         .where(LeagueMember.user_id == user.id, LeagueMember.archived == False)  # noqa: E712
