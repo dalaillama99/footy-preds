@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import PLTableModal from '../components/PLTableModal'
 
 export default function Home() {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [showReselect, setShowReselect] = useState(false)
 
   return (
@@ -43,7 +43,7 @@ export default function Home() {
         </Link>
       </div>
 
-      {user?.is_admin && (
+      {isAdmin && (
         <div className="mt-8 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-5">
           <p className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-1">Admin</p>
           <p className="text-sm text-amber-700 dark:text-amber-500">

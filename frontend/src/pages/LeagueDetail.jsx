@@ -137,7 +137,7 @@ const TABS = ['Standings', 'Predictions', 'Members']
 
 export default function LeagueDetail() {
   const { id } = useParams()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState('Standings')
 
@@ -191,16 +191,16 @@ export default function LeagueDetail() {
   // that's computed after this component's early loading/not-found returns
   // and hooks must run unconditionally above them).
   useEffect(() => {
-    if (!league || (league.admin_id !== user?.id && !user?.is_admin)) return
+    if (!league || (league.admin_id !== user?.id && !isAdmin)) return
     api.get('/fixtures/competitions').then(r => setCompetitionsList(r.data || [])).catch(() => {})
-  }, [league, user])
+  }, [league, user, isAdmin])
 
   useEffect(() => {
-    if (!league || (league.admin_id !== user?.id && !user?.is_admin)) return
+    if (!league || (league.admin_id !== user?.id && !isAdmin)) return
     if (!settingsCompetitions.includes('CL')) return
     if (uclTeamsList.length > 0) return
     api.get('/ucl/teams').then(r => setUclTeamsList(r.data || [])).catch(() => {})
-  }, [league, user, settingsCompetitions, uclTeamsList.length])
+  }, [league, user, isAdmin, settingsCompetitions, uclTeamsList.length])
 
   const copyCode = () => {
     navigator.clipboard.writeText(league.invite_code)
@@ -280,7 +280,7 @@ export default function LeagueDetail() {
   if (!league) return <p className="text-red-500 text-sm">League not found.</p>
 
   const isLeagueCreator = league.admin_id === user?.id
-  const canManageLeague = isLeagueCreator || user?.is_admin
+  const canManageLeague = isLeagueCreator || isAdmin
 
   return (
     <div>

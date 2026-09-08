@@ -89,7 +89,7 @@ const ALL_SLOTS = [...TOP5_SLOTS, ...RELEGATION_SLOTS]
 // early-return, always prefills from any existing prediction, and its submit
 // handler deletes-then-reposts instead of posting once and locking.
 export default function PLTableModal({ editMode = false, onClose }) {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [show, setShow] = useState(false)
   const [teams, setTeams] = useState([])
   const [saving, setSaving] = useState(false)
@@ -186,13 +186,15 @@ export default function PLTableModal({ editMode = false, onClose }) {
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
               🏆 Premier League table prediction
             </h2>
-            <button
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none ml-4 mt-0.5"
-              aria-label="Close"
-            >
-              ×
-            </button>
+            {isAdmin && (
+              <button
+                onClick={handleClose}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none ml-4 mt-0.5"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            )}
           </div>
           <div className="text-sm text-gray-500 dark:text-gray-400 space-y-3">
             <p>Predict the final Premier League top 5 and bottom 3 (relegation) for the season. Enter now and it's locked in for good. 🔒</p>

@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user
+from app.auth import get_current_user, get_effective_is_admin
 from app.database import get_db
 from app.models import BracketPrediction, Fixture, League, LeagueMember, Prediction, User
 from app.schemas import (
@@ -40,11 +40,13 @@ async def _member_count(db: AsyncSession, league_id: str) -> int:
 
 
 def _build_league_out(
-    league: League, user: User, count: int, sf_done: bool, sf_revealed: bool, archived: bool
+    league: League, user: User, count: int, sf_done: bool, sf_revealed: bool, archived: bool,
+    effective_is_admin: bool,
 ) -> LeagueOut:
     # admin_invite_code is only ever shown to the league's own admin or a site admin —
     # everyone else (including someone who just joined via that very code) gets null.
-    can_see_admin_code = league.admin_id == user.id or user.is_admin
+    # The ownership half stays on the real user id; only the admin half is preview-aware.
+    can_see_admin_code = league.admin_id == user.id or effective_is_admin
     return LeagueOut(
         id=league.id,
         name=league.name,
@@ -113,6 +115,7 @@ async def _wc_final_kickoff(db: AsyncSession) -> datetime | None:
 async def create_league(
     data: LeagueCreate,
     user: User = Depends(get_current_user),
+    effective_is_admin: bool = Depends(get_effective_is_admin),
     db: AsyncSession = Depends(get_db),
 ):
     if not user.is_admin:
@@ -142,7 +145,7 @@ async def create_league(
     await db.refresh(league)
     sf_done = await _semis_finished(db)
     sf_revealed = await _semis_revealed(db)
-    return _build_league_out(league, user, 1, sf_done, sf_revealed, archived=False)
+    return _build_league_out(league, user, 1, sf_done, sf_revealed, archived=False, effective_is_admin=effective_is_admin)
 
 
 @router.post("/reset-competitions-to-all")
@@ -181,6 +184,7 @@ async def reset_competitions_to_all(
 async def join_league(
     data: LeagueJoin,
     user: User = Depends(get_current_user),
+    effective_is_admin: bool = Depends(get_effective_is_admin),
     db: AsyncSession = Depends(get_db),
 ):
     code = data.invite_code.upper()
@@ -210,11 +214,15 @@ async def join_league(
     count = await _member_count(db, league.id)
     sf_done = await _semis_finished(db)
     sf_revealed = await _semis_revealed(db)
-    return _build_league_out(league, user, count, sf_done, sf_revealed, archived=False)
+    return _build_league_out(league, user, count, sf_done, sf_revealed, archived=False, effective_is_admin=effective_is_admin)
 
 
 @router.get("", response_model=list[LeagueOut])
-async def my_leagues(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def my_leagues(
+    user: User = Depends(get_current_user),
+    effective_is_admin: bool = Depends(get_effective_is_admin),
+    db: AsyncSession = Depends(get_db),
+):
     memberships = await db.execute(
         select(LeagueMember).where(LeagueMember.user_id == user.id).options(selectinload(LeagueMember.league))
     )
@@ -224,12 +232,17 @@ async def my_leagues(user: User = Depends(get_current_user), db: AsyncSession = 
     for m in memberships.scalars():
         count = await _member_count(db, m.league_id)
         league = m.league
-        leagues.append(_build_league_out(league, user, count, sf_done, sf_revealed, archived=m.archived))
+        leagues.append(_build_league_out(league, user, count, sf_done, sf_revealed, archived=m.archived, effective_is_admin=effective_is_admin))
     return leagues
 
 
 @router.get("/{league_id}", response_model=LeagueOut)
-async def get_league(league_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_league(
+    league_id: str,
+    user: User = Depends(get_current_user),
+    effective_is_admin: bool = Depends(get_effective_is_admin),
+    db: AsyncSession = Depends(get_db),
+):
     membership = await db.execute(
         select(LeagueMember).where(LeagueMember.user_id == user.id, LeagueMember.league_id == league_id)
     )
@@ -245,7 +258,7 @@ async def get_league(league_id: str, user: User = Depends(get_current_user), db:
     count = await _member_count(db, league_id)
     sf_done = await _semis_finished(db)
     sf_revealed = await _semis_revealed(db)
-    return _build_league_out(league, user, count, sf_done, sf_revealed, archived=member.archived)
+    return _build_league_out(league, user, count, sf_done, sf_revealed, archived=member.archived, effective_is_admin=effective_is_admin)
 
 
 @router.patch("/{league_id}/settings", response_model=LeagueOut)
@@ -253,6 +266,7 @@ async def update_league_settings(
     league_id: str,
     data: LeagueSettingsUpdate,
     user: User = Depends(get_current_user),
+    effective_is_admin: bool = Depends(get_effective_is_admin),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(League).where(League.id == league_id))
@@ -304,7 +318,7 @@ async def update_league_settings(
     member = membership.scalar_one_or_none()
     archived = member.archived if member is not None else False
 
-    return _build_league_out(league, user, count, sf_done, sf_revealed, archived=archived)
+    return _build_league_out(league, user, count, sf_done, sf_revealed, archived=archived, effective_is_admin=effective_is_admin)
 
 
 @router.patch("/{league_id}/archive", response_model=LeagueOut)
@@ -312,6 +326,7 @@ async def archive_league(
     league_id: str,
     data: LeagueArchiveUpdate,
     user: User = Depends(get_current_user),
+    effective_is_admin: bool = Depends(get_effective_is_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Archive/unarchive purely from the caller's own personal view of a league they
@@ -334,13 +349,14 @@ async def archive_league(
     count = await _member_count(db, league_id)
     sf_done = await _semis_finished(db)
     sf_revealed = await _semis_revealed(db)
-    return _build_league_out(league, user, count, sf_done, sf_revealed, archived=data.archived)
+    return _build_league_out(league, user, count, sf_done, sf_revealed, archived=data.archived, effective_is_admin=effective_is_admin)
 
 
 @router.get("/{league_id}/leaderboard", response_model=list[LeaderboardEntry])
 async def leaderboard(
     league_id: str,
     user: User = Depends(get_current_user),
+    effective_is_admin: bool = Depends(get_effective_is_admin),
     db: AsyncSession = Depends(get_db),
 ):
     membership = await db.execute(
@@ -434,7 +450,7 @@ async def leaderboard(
             exact_count=exact,
             correct_gd_count=correct_gd,
             correct_result_count=correct_result,
-            real_name=(m.user.username if user.is_admin else None),
+            real_name=(m.user.username if effective_is_admin else None),
             bracket_bonus=bracket_bonus,
             bracket_sf_points=bracket_sf_pts,
             bracket_finalist_points=bracket_finalist_pts,
@@ -481,6 +497,7 @@ async def leaderboard(
 async def get_members(
     league_id: str,
     user: User = Depends(get_current_user),
+    effective_is_admin: bool = Depends(get_effective_is_admin),
     db: AsyncSession = Depends(get_db),
 ):
     membership = await db.execute(
@@ -506,7 +523,7 @@ async def get_members(
             username=_display_name(m.user),
             joined_at=m.joined_at,
             is_league_admin=(m.user_id == league.admin_id),
-            real_name=(m.user.username if user.is_admin else None),
+            real_name=(m.user.username if effective_is_admin else None),
         )
         for m in members_result.scalars()
     ]

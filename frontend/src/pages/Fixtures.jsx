@@ -45,7 +45,7 @@ function groupByStage(fixtures) {
 }
 
 export default function Fixtures() {
-  const { user } = useAuth()
+  const { isAdmin } = useAuth()
   const [fixtures, setFixtures] = useState([])
   const [predictions, setPredictions] = useState({})
   const [loading, setLoading] = useState(true)
@@ -136,7 +136,7 @@ export default function Fixtures() {
   const pastGrouped = groupByStage(past)
   const pastKeys = sortStageKeys(Object.keys(pastGrouped))
 
-  const cardProps = { isAdmin: user?.is_admin, onPredictionSaved, onScoreSet, onFixtureUpdated, onFixtureDeleted }
+  const cardProps = { isAdmin, onPredictionSaved, onScoreSet, onFixtureUpdated, onFixtureDeleted }
 
   if (loading) return <p className="text-gray-400 dark:text-gray-500 text-sm">Loading fixtures…</p>
   if (fetchError) return (
@@ -154,7 +154,7 @@ export default function Fixtures() {
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fixtures</h1>
         </div>
-        {user?.is_admin && (
+        {isAdmin && (
           <div className="flex gap-2">
             <button onClick={() => { setShowSync(!showSync); setShowAdd(false) }}
               className="border border-amber-400 dark:border-amber-600 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-sm font-medium px-3 py-1.5 rounded-lg transition">

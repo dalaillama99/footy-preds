@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user
+from app.auth import get_current_user, get_effective_is_admin
 from app.database import get_db
 from app.models import BracketPrediction, Prediction, User
 from app.schemas import LeaderboardEntry
@@ -13,6 +13,7 @@ router = APIRouter(prefix="/leaderboard", tags=["leaderboard"])
 @router.get("", response_model=list[LeaderboardEntry])
 async def global_leaderboard(
     user: User = Depends(get_current_user),
+    effective_is_admin: bool = Depends(get_effective_is_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Global standings across all users and all scored fixtures."""
@@ -50,7 +51,7 @@ async def global_leaderboard(
             exact_count=exact,
             correct_gd_count=correct_gd,
             correct_result_count=correct_result,
-            real_name=(u.username if user.is_admin else None),
+            real_name=(u.username if effective_is_admin else None),
             bracket_bonus=bracket_bonus,
             bracket_sf_points=bracket_sf_pts,
             bracket_finalist_points=bracket_finalist_pts,

@@ -31,7 +31,7 @@ function LeagueRow({ league, onToggleArchive, archiving }) {
 }
 
 export default function Leagues() {
-  const { user } = useAuth()
+  const { isAdmin } = useAuth()
   const [leagues, setLeagues] = useState([])
   const [loading, setLoading] = useState(true)
   const [createName, setCreateName] = useState('')
@@ -60,16 +60,16 @@ export default function Leagues() {
   useEffect(() => { fetchLeagues() }, [])
 
   useEffect(() => {
-    if (!user?.is_admin) return
+    if (!isAdmin) return
     api.get('/fixtures/competitions').then(r => setCompetitionsList(r.data || [])).catch(() => {})
-  }, [user])
+  }, [isAdmin])
 
   useEffect(() => {
-    if (!user?.is_admin) return
+    if (!isAdmin) return
     if (!selectedCompetitions.includes('CL')) return
     if (uclTeamsList.length > 0) return
     api.get('/ucl/teams').then(r => setUclTeamsList(r.data || [])).catch(() => {})
-  }, [user, selectedCompetitions, uclTeamsList.length])
+  }, [isAdmin, selectedCompetitions, uclTeamsList.length])
 
   const flash = (msg, isError = false) => {
     if (isError) { setError(msg); setTimeout(() => setError(''), 4000) }
@@ -144,7 +144,7 @@ export default function Leagues() {
       {success && <p className="text-green-700 dark:text-green-400 text-sm mb-4 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg">{success}</p>}
 
       <div className="grid sm:grid-cols-2 gap-4 mb-8">
-        {user?.is_admin && (
+        {isAdmin && (
           <form onSubmit={create} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
             <h2 className="font-semibold text-gray-900 dark:text-white mb-3">Create a league</h2>
             <input

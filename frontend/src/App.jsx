@@ -81,7 +81,7 @@ function PublicRoute({ children }) {
 }
 
 function Layout({ children }) {
-  const { user } = useAuth()
+  const { user, previewNonAdmin, togglePreviewNonAdmin } = useAuth()
   // Onboarding sequence: team-name popup FIRST. Only once the user has a
   // team_name do we surface the bonus bracket popup, the PL table prediction
   // popup, the UCL winner-pick popup (all open to everyone, same tier — no
@@ -90,6 +90,14 @@ function Layout({ children }) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
+      {previewNonAdmin && (
+        <div className="bg-amber-500 text-white text-sm font-medium text-center px-4 py-2">
+          👁️ Previewing as a regular user —{' '}
+          <button onClick={togglePreviewNonAdmin} className="underline font-semibold">
+            Exit preview
+          </button>
+        </div>
+      )}
       {needsTeamName && <TeamNameModal />}
       {!needsTeamName && <BracketModal />}
       {!needsTeamName && <PLTableModal />}

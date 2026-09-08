@@ -7,6 +7,7 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) config.headers.Authorization = `Bearer ${token}`
+  if (localStorage.getItem('previewNonAdmin') === '1') config.headers['X-Preview-Non-Admin'] = '1'
   return config
 })
 

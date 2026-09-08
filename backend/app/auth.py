@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -45,3 +45,20 @@ async def get_current_user(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
+
+
+async def get_effective_is_admin(
+    user: User = Depends(get_current_user),
+    x_preview_non_admin: str | None = Header(default=None),
+) -> bool:
+    """Response-shaping-only admin flag: identical to `user.is_admin` unless the
+    caller is a genuine admin who has sent `X-Preview-Non-Admin`, in which case it
+    returns False. This can only ever narrow True -> False, never the reverse — a
+    non-admin sending this header changes nothing, since `user.is_admin` is already
+    False for them and the `and user.is_admin` guard means the branch never fires.
+    Must NEVER be used in place of `user.is_admin` for action-permission gates —
+    only for response-shaping (what data gets included), never for whether a
+    request is allowed at all."""
+    if x_preview_non_admin and user.is_admin:
+        return False
+    return user.is_admin
