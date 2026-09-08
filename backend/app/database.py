@@ -56,24 +56,8 @@ async def init_db():
                 {"code": _invite_code(), "id": league_id},
             )
 
-        # One-time backfill: pre-existing leagues (created before `competitions`
-        # existed) have NULL there after the ALTER above. Uniform default — ALL
-        # known COMPETITIONS codes, unconditionally, no fixture-history query.
-        # This honestly represents what was actually true before this feature
-        # existed: every league implicitly covered every synced competition, so
-        # there's no real per-league "intent" to reconstruct from fixture data
-        # (a prior fixture-history-derived backfill was tried and found to just
-        # reconstruct "whatever happened to be synced during that window", which
-        # nobody actually chose — see POST /leagues/reset-competitions-to-all for
-        # the one-time corrective re-run against leagues that already got that
-        # stale derived value). Safe/idempotent to re-run on every startup —
-        # WHERE competitions IS NULL means already-backfilled rows are skipped.
-        # Deferred import to avoid a circular import (COMPETITIONS lives outside
-        # app.models, and app.database is a low-level module other things import
-        # from).
-        from app.services.football_api import COMPETITIONS
-
-        await conn.execute(
-            text("UPDATE leagues SET competitions = :competitions WHERE competitions IS NULL"),
-            {"competitions": ",".join(COMPETITIONS.keys())},
-        )
+        # No backfill for `competitions` — a NULL/unset value is a real, permanent
+        # state meaning "not yet configured", not a migration artifact to correct.
+        # Leagues stay NULL until their admin explicitly chooses via
+        # PATCH /leagues/{id}/settings (or POST /leagues/clear-competitions resets
+        # them back to NULL deliberately).

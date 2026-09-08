@@ -148,36 +148,72 @@ async def create_league(
     return _build_league_out(league, user, 1, sf_done, sf_revealed, archived=False, effective_is_admin=effective_is_admin)
 
 
-@router.post("/reset-competitions-to-all")
-async def reset_competitions_to_all(
+@router.post("/clear-competitions")
+async def clear_competitions(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Admin-only, one-time corrective tool: unconditionally set `competitions` to
-    ALL known COMPETITIONS codes for EVERY league in the database — not gated on
-    `competitions IS NULL` like the passive startup backfill in `init_db()`. That
-    passive backfill only fills in leagues that are still NULL; it deliberately
-    does not touch leagues that already got a value from a previous (now
-    considered wrong) fixture-history-derived backfill. This endpoint is the
-    deliberate, explicit way to correct those already-backfilled leagues back to
-    the uniform "every competition" default.
+    """Admin-only, one-time corrective/reset tool: unconditionally clear
+    `competitions` (and `ucl_teams`, since a league with no competitions chosen
+    has no meaningful team-pool either) back to NULL for EVERY league in the
+    database — not gated on any current value. This forces every league's admin
+    to make a fresh explicit choice the next time they visit the Leagues tab,
+    instead of silently defaulting to "every competition" as this endpoint used
+    to do.
 
-    WARNING: this overwrites `competitions` for every league unconditionally,
-    including any league whose competitions were already manually customized by
-    its creator (or a site admin) via PATCH /leagues/{id}/settings. Run this only
-    when you intend that reset — it is not run automatically as part of any
-    migration.
+    WARNING: this wipes `competitions`/`ucl_teams` for every league
+    unconditionally, including any league whose competitions were already
+    manually customized by its creator (or a site admin) via
+    PATCH /leagues/{id}/settings. Run this only when you intend that reset — it
+    is not run automatically as part of any migration, and there is no passive
+    backfill anymore to re-populate leagues afterward.
     """
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
 
-    all_codes = ",".join(COMPETITIONS.keys())
     result = await db.execute(select(League))
     leagues = result.scalars().all()
     for league in leagues:
-        league.competitions = all_codes
+        league.competitions = None
+        league.ucl_teams = None
     await db.commit()
     return {"leagues_updated": len(leagues)}
+
+
+# Registered before GET /leagues/{league_id} deliberately — that route is a
+# catch-all for any single path segment and would otherwise swallow requests
+# to /leagues/unset (treating "unset" as a league_id) if these were reordered.
+@router.get("/unset", response_model=list[LeagueOut])
+async def unset_leagues(
+    user: User = Depends(get_current_user),
+    effective_is_admin: bool = Depends(get_effective_is_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin-only: every League (regardless of the caller's membership) whose
+    `competitions` is NULL or empty — i.e. every league that still needs its
+    admin to complete the forced competitions-setup flow. Deliberately does not
+    reuse GET /leagues (`my_leagues`), which only returns leagues the caller is
+    a member of; a site admin must see every unset league site-wide, not just
+    ones they happen to have joined."""
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    result = await db.execute(select(League))
+    leagues = result.scalars().all()
+    sf_done = await _semis_finished(db)
+    sf_revealed = await _semis_revealed(db)
+    out = []
+    for league in leagues:
+        if parse_competitions(league.competitions):
+            continue
+        count = await _member_count(db, league.id)
+        membership = await db.execute(
+            select(LeagueMember).where(LeagueMember.user_id == user.id, LeagueMember.league_id == league.id)
+        )
+        member = membership.scalar_one_or_none()
+        archived = member.archived if member is not None else False
+        out.append(_build_league_out(league, user, count, sf_done, sf_revealed, archived=archived, effective_is_admin=effective_is_admin))
+    return out
 
 
 @router.post("/join", response_model=LeagueOut)

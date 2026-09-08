@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import CompetitionsPicker, { isValidCompetitionsSelection } from '../components/CompetitionsPicker'
+import LeagueCompetitionsSetupModal from '../components/LeagueCompetitionsSetupModal'
 
 // One league row — used in both the Active and Archived sections. The
 // Archive/Unarchive control sits outside the Link so it never triggers
@@ -31,7 +33,7 @@ function LeagueRow({ league, onToggleArchive, archiving }) {
 }
 
 export default function Leagues() {
-  const { isAdmin } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [leagues, setLeagues] = useState([])
   const [loading, setLoading] = useState(true)
   const [createName, setCreateName] = useState('')
@@ -42,16 +44,23 @@ export default function Leagues() {
   const [archivingId, setArchivingId] = useState(null)
 
   // Competitions multi-select + conditional CL-team multi-select, admin-only
-  // create form.
-  const [competitionsList, setCompetitionsList] = useState([]) // [{code, name}]
+  // create form. Fetching/toggling/validity now lives in the shared,
+  // controlled <CompetitionsPicker> — this page just owns the selected
+  // values.
   const [selectedCompetitions, setSelectedCompetitions] = useState([])
-  const [uclTeamsList, setUclTeamsList] = useState([]) // [{name, crest}]
   const [selectedUclTeams, setSelectedUclTeams] = useState([])
+
+  // Forced competitions-setup queue: this user's own unset leagues, plus
+  // (for a site admin) every unset league site-wide via GET /leagues/unset —
+  // not just a filter over `leagues`, since that endpoint only returns
+  // leagues the caller is a member of. Combined and deduped by league id.
+  const [needsSetupQueue, setNeedsSetupQueue] = useState([])
 
   const fetchLeagues = async () => {
     try {
       const { data } = await api.get('/leagues')
       setLeagues(data)
+      return data
     } finally {
       setLoading(false)
     }
@@ -60,32 +69,43 @@ export default function Leagues() {
   useEffect(() => { fetchLeagues() }, [])
 
   useEffect(() => {
-    if (!isAdmin) return
-    api.get('/fixtures/competitions').then(r => setCompetitionsList(r.data || [])).catch(() => {})
-  }, [isAdmin])
+    if (loading || !user) return
+    let cancelled = false
+    ;(async () => {
+      const ownUnset = leagues.filter(l => l.admin_id === user.id && (l.competitions || []).length === 0)
+      let combined = ownUnset
+      if (isAdmin) {
+        try {
+          const { data } = await api.get('/leagues/unset')
+          const extra = (data || []).filter(l => !combined.some(c => c.id === l.id))
+          combined = [...combined, ...extra]
+        } catch {
+          // If this fails, fall back to just the admin's own unset leagues
+          // rather than blocking the page.
+        }
+      }
+      if (!cancelled) setNeedsSetupQueue(combined)
+    })()
+    return () => { cancelled = true }
+    // Only recompute once the initial /leagues fetch settles — the queue is
+    // otherwise maintained locally as each league is completed (see
+    // handleSetupComplete below), so this doesn't need to re-run on every
+    // `leagues` change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
 
-  useEffect(() => {
-    if (!isAdmin) return
-    if (!selectedCompetitions.includes('CL')) return
-    if (uclTeamsList.length > 0) return
-    api.get('/ucl/teams').then(r => setUclTeamsList(r.data || [])).catch(() => {})
-  }, [isAdmin, selectedCompetitions, uclTeamsList.length])
-
-  const flash = (msg, isError = false) => {
-    if (isError) { setError(msg); setTimeout(() => setError(''), 4000) }
-    else { setSuccess(msg); setTimeout(() => setSuccess(''), 4000) }
-  }
-
-  const toggleCompetition = (code) => {
-    setSelectedCompetitions(prev => {
-      const next = prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
-      if (!next.includes('CL')) setSelectedUclTeams([])
+  const handleSetupComplete = (updatedLeague) => {
+    setLeagues(prev => prev.map(l => (l.id === updatedLeague.id ? updatedLeague : l)))
+    setNeedsSetupQueue(prev => {
+      const next = prev.filter(l => l.id !== updatedLeague.id)
+      if (next.length === 0) fetchLeagues() // queue now empty — refresh the page's own league list
       return next
     })
   }
 
-  const toggleUclTeam = (name) => {
-    setSelectedUclTeams(prev => prev.includes(name) ? prev.filter(t => t !== name) : [...prev, name])
+  const flash = (msg, isError = false) => {
+    if (isError) { setError(msg); setTimeout(() => setError(''), 4000) }
+    else { setSuccess(msg); setTimeout(() => setSuccess(''), 4000) }
   }
 
   const create = async (e) => {
@@ -130,14 +150,17 @@ export default function Leagues() {
     }
   }
 
-  const createDisabled = selectedCompetitions.length === 0 ||
-    (selectedCompetitions.includes('CL') && selectedUclTeams.length === 0)
+  const createDisabled = !isValidCompetitionsSelection(selectedCompetitions, selectedUclTeams)
 
   const activeLeagues = leagues.filter(l => !l.archived)
   const archivedLeagues = leagues.filter(l => l.archived)
 
   return (
     <div>
+      {needsSetupQueue.length > 0 && (
+        <LeagueCompetitionsSetupModal league={needsSetupQueue[0]} onComplete={handleSetupComplete} />
+      )}
+
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">My Leagues</h1>
 
       {error && <p className="text-red-500 text-sm mb-4 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
@@ -158,43 +181,12 @@ export default function Leagues() {
               className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
 
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Competitions</p>
-            <div className="grid grid-cols-2 gap-1.5 mb-3">
-              {competitionsList.map(c => (
-                <label key={c.code} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                  <input
-                    type="checkbox"
-                    checked={selectedCompetitions.includes(c.code)}
-                    onChange={() => toggleCompetition(c.code)}
-                    className="accent-green-600"
-                  />
-                  {c.name}
-                </label>
-              ))}
-            </div>
-
-            {selectedCompetitions.includes('CL') && (
-              <div className="mb-3">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Champions League teams</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mb-1.5">Only Champions League games between two teams you select here will be shown or count for this league.</p>
-                <div className="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg p-2">
-                  {uclTeamsList.map(t => (
-                    <label key={t.name} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                      <input
-                        type="checkbox"
-                        checked={selectedUclTeams.includes(t.name)}
-                        onChange={() => toggleUclTeam(t.name)}
-                        className="accent-green-600"
-                      />
-                      {t.name}
-                    </label>
-                  ))}
-                </div>
-                {selectedUclTeams.length === 0 && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Select at least one Champions League team.</p>
-                )}
-              </div>
-            )}
+            <CompetitionsPicker
+              selectedCompetitions={selectedCompetitions}
+              onCompetitionsChange={setSelectedCompetitions}
+              selectedUclTeams={selectedUclTeams}
+              onUclTeamsChange={setSelectedUclTeams}
+            />
 
             <button disabled={createDisabled} className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
               Create

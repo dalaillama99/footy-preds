@@ -14,10 +14,11 @@ This module is imported by `app.routers.leagues`, `app.routers.fixtures`, and
 `app.routers.ucl` — for scoping fixtures/predictions to a league's chosen
 competitions, and (in `app.routers.fixtures`) for grouping fixtures by
 competition code when deciding which competitions are currently "active" for
-`POST /fixtures/recalculate-recent`. `app.database`'s startup backfill no
-longer imports from here — it now sets every NULL `League.competitions` to
-the full set of known competition codes unconditionally, with no per-league
-derivation. Do not reimplement this matching logic anywhere else.
+`POST /fixtures/recalculate-recent`. `app.database`'s startup no longer runs
+any backfill for this column at all — a NULL/unset `League.competitions` is
+now a permanent, meaningful "not yet configured" state, not something to be
+silently derived or defaulted. Do not reimplement this matching logic
+anywhere else.
 """
 
 # Maps every `COMPETITIONS` code (see app.services.football_api) to a short,

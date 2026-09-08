@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import Leaderboard from '../components/Leaderboard'
+import CompetitionsPicker, { isValidCompetitionsSelection } from '../components/CompetitionsPicker'
 
 function fmtKickoff(kickoff) {
   const d = new Date(kickoff + 'Z')
@@ -159,8 +160,6 @@ export default function LeagueDetail() {
   const [settingsSaved, setSettingsSaved] = useState(false)
   const [settingsCompetitions, setSettingsCompetitions] = useState([])
   const [settingsUclTeams, setSettingsUclTeams] = useState([])
-  const [competitionsList, setCompetitionsList] = useState([]) // [{code, name}]
-  const [uclTeamsList, setUclTeamsList] = useState([]) // [{name, crest}]
 
   useEffect(() => {
     const fetch = async () => {
@@ -184,23 +183,6 @@ export default function LeagueDetail() {
     }
     fetch()
   }, [id])
-
-  // League Settings pickers — only ever needed for users who can manage the
-  // league (its creator, or a site admin), so gate fetching on that (compare
-  // directly rather than via the `canManageLeague` const declared below, since
-  // that's computed after this component's early loading/not-found returns
-  // and hooks must run unconditionally above them).
-  useEffect(() => {
-    if (!league || (league.admin_id !== user?.id && !isAdmin)) return
-    api.get('/fixtures/competitions').then(r => setCompetitionsList(r.data || [])).catch(() => {})
-  }, [league, user, isAdmin])
-
-  useEffect(() => {
-    if (!league || (league.admin_id !== user?.id && !isAdmin)) return
-    if (!settingsCompetitions.includes('CL')) return
-    if (uclTeamsList.length > 0) return
-    api.get('/ucl/teams').then(r => setUclTeamsList(r.data || [])).catch(() => {})
-  }, [league, user, isAdmin, settingsCompetitions, uclTeamsList.length])
 
   const copyCode = () => {
     navigator.clipboard.writeText(league.invite_code)
@@ -238,18 +220,6 @@ export default function LeagueDetail() {
     }
   }
 
-  const toggleSettingsCompetition = (code) => {
-    setSettingsCompetitions(prev => {
-      const next = prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
-      if (!next.includes('CL')) setSettingsUclTeams([])
-      return next
-    })
-  }
-
-  const toggleSettingsUclTeam = (name) => {
-    setSettingsUclTeams(prev => prev.includes(name) ? prev.filter(t => t !== name) : [...prev, name])
-  }
-
   const saveSettings = async (e) => {
     e.preventDefault()
     setSavingSettings(true)
@@ -273,8 +243,7 @@ export default function LeagueDetail() {
     }
   }
 
-  const settingsSaveDisabled = savingSettings || settingsCompetitions.length === 0 ||
-    (settingsCompetitions.includes('CL') && settingsUclTeams.length === 0)
+  const settingsSaveDisabled = savingSettings || !isValidCompetitionsSelection(settingsCompetitions, settingsUclTeams)
 
   if (loading) return <p className="text-gray-400 dark:text-gray-500 text-sm">Loading…</p>
   if (!league) return <p className="text-red-500 text-sm">League not found.</p>
@@ -422,45 +391,12 @@ export default function LeagueDetail() {
                     </p>
                   </div>
 
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Competitions</p>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {competitionsList.map(c => (
-                        <label key={c.code} className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={settingsCompetitions.includes(c.code)}
-                            onChange={() => toggleSettingsCompetition(c.code)}
-                            className="accent-green-600"
-                          />
-                          {c.name}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {settingsCompetitions.includes('CL') && (
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Champions League teams</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mb-1.5">Only Champions League games between two teams you select here will be shown or count for this league.</p>
-                      <div className="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg p-2">
-                        {uclTeamsList.map(t => (
-                          <label key={t.name} className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
-                            <input
-                              type="checkbox"
-                              checked={settingsUclTeams.includes(t.name)}
-                              onChange={() => toggleSettingsUclTeam(t.name)}
-                              className="accent-green-600"
-                            />
-                            {t.name}
-                          </label>
-                        ))}
-                      </div>
-                      {settingsUclTeams.length === 0 && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Select at least one Champions League team.</p>
-                      )}
-                    </div>
-                  )}
+                  <CompetitionsPicker
+                    selectedCompetitions={settingsCompetitions}
+                    onCompetitionsChange={setSettingsCompetitions}
+                    selectedUclTeams={settingsUclTeams}
+                    onUclTeamsChange={setSettingsUclTeams}
+                  />
 
                   <div className="flex items-center gap-3">
                     <button
