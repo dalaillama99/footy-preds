@@ -98,7 +98,7 @@ async def _live_score_poller():
                 matches = await fetch_live_matches()
                 if matches:
                     async with AsyncSessionLocal() as db:
-                        result = await upsert_fixtures(db, matches)
+                        result = await upsert_fixtures(db, matches, allow_create=False)
                         if result["points_recalculated"]:
                             logger.info("Live poll: %d matches, %d predictions scored",
                                         result["total"], result["points_recalculated"])
@@ -111,7 +111,7 @@ async def _live_score_poller():
                     match_data = await fetch_match_result(fixture.api_id)
                     _last_result_check[fixture.id] = datetime.utcnow()
                     async with AsyncSessionLocal() as db:
-                        await upsert_fixtures(db, [match_data])
+                        await upsert_fixtures(db, [match_data], allow_create=False)
                 except Exception as exc:
                     logger.warning("Failed to check result for fixture %s: %s", fixture.api_id, exc)
                 await asyncio.sleep(_PER_FIXTURE_CALL_SPACING)

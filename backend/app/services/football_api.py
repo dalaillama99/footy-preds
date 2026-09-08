@@ -148,15 +148,22 @@ async def fetch_live_matches() -> list[dict]:
     return [_parse_match(m) for m in resp.json().get("matches", [])]
 
 
-async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
+async def upsert_fixtures(db: AsyncSession, matches: list[dict], allow_create: bool = True) -> dict:
     """
     Upsert a list of parsed match dicts into the DB.
-    - Creates new fixtures for unknown api_ids.
+    - Creates new fixtures for unknown api_ids (unless allow_create=False).
     - Updates score/status for known fixtures.
     - Auto-calculates prediction points when a match transitions to FINISHED.
+
+    allow_create=False is used by the background live-score poller so it can
+    never resurrect a fixture an admin has deliberately unsynced (deleted) —
+    it only ever updates fixtures that already exist in the DB. Deliberate
+    admin-triggered syncs (POST /fixtures/sync, POST /fixtures/{id}/refresh)
+    keep the default allow_create=True and can still create rows.
+
     Returns a summary dict.
     """
-    created = updated = points_recalculated = skipped = 0
+    created = updated = points_recalculated = skipped = skipped_not_synced = 0
 
     for m in matches:
         # Skip fixtures whose teams aren't known yet — e.g. World Cup knockout slots
@@ -170,10 +177,20 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
         result = await db.execute(select(Fixture).where(Fixture.api_id == m["api_id"]))
         fixture = result.scalar_one_or_none()
 
+        if fixture is None and not allow_create:
+            # Unknown fixture and we're not allowed to create — most likely an
+            # admin unsynced this competition and this match is no longer meant
+            # to exist in our DB. Skip entirely: no row, no prediction/bracket
+            # rescoring (nothing to recalculate for a fixture that doesn't exist).
+            skipped_not_synced += 1
+            continue
+
         if fixture:
             prev_status = fixture.status
             prev_home = fixture.home_score
             prev_away = fixture.away_score
+            prev_home_team = fixture.home_team
+            prev_away_team = fixture.away_team
             now_utc = datetime.now(timezone.utc)
             fixture_kickoff = fixture.kickoff if fixture.kickoff.tzinfo else fixture.kickoff.replace(tzinfo=timezone.utc)
             if m["status"] == "LIVE" and fixture.status == "SCHEDULED" and now_utc < fixture_kickoff - timedelta(minutes=5):
@@ -182,6 +199,8 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
                     fixture.api_id, fixture.kickoff, now_utc,
                 )
                 m = {**m, "status": fixture.status}  # override status to keep current
+            fixture.home_team = m["home_team"]
+            fixture.away_team = m["away_team"]
             fixture.status = m["status"]
             fixture.home_score = m["home_score"]
             fixture.away_score = m["away_score"]
@@ -195,9 +214,10 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
 
             just_finished = (prev_status != "FINISHED") and (m["status"] == "FINISHED")
             score_changed = (prev_home != m["home_score"] or prev_away != m["away_score"])
+            teams_changed = (prev_home_team != m["home_team"] or prev_away_team != m["away_team"])
             if m["status"] == "FINISHED" and m["home_score"] is not None and (just_finished or score_changed or pen_changed):
                 points_recalculated += await _recalc_points(db, fixture)
-            if just_finished and m.get("stage") in ("SEMI_FINALS", "FINAL"):
+            if m.get("stage") in ("SEMI_FINALS", "FINAL") and (just_finished or teams_changed):
                 await _rescore_brackets(db)
             updated += 1
         else:
@@ -230,7 +250,14 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict]) -> dict:
             created += 1
 
     await db.commit()
-    return {"created": created, "updated": updated, "points_recalculated": points_recalculated, "skipped": skipped, "total": len(matches)}
+    return {
+        "created": created,
+        "updated": updated,
+        "points_recalculated": points_recalculated,
+        "skipped": skipped,
+        "skipped_not_synced": skipped_not_synced,
+        "total": len(matches),
+    }
 
 
 async def fetch_match_result(api_id: int) -> dict:
