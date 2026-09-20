@@ -69,7 +69,7 @@ function TeamTypeahead({ value, onChange, options, placeholder, disabled = false
 // (GET /ucl/me on mount — null means show; submit sets show=false permanently
 // and never shows again).
 export default function UclWinnerModal({ onClose }) {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [show, setShow] = useState(false)
   const [teams, setTeams] = useState([])
   const [winner, setWinner] = useState('')
@@ -129,13 +129,15 @@ export default function UclWinnerModal({ onClose }) {
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
               🏆 Champions League winner
             </h2>
-            <button
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none ml-4 mt-0.5"
-              aria-label="Close"
-            >
-              ×
-            </button>
+            {isAdmin && (
+              <button
+                onClick={handleClose}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none ml-4 mt-0.5"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            )}
           </div>
           <div className="text-sm text-gray-500 dark:text-gray-400 space-y-3">
             <p>Predict which team wins the Champions League this season. Enter now and it's locked in for good. 🔒</p>

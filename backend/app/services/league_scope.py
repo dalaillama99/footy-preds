@@ -83,6 +83,13 @@ def fixture_in_league_scope(
     "CL" in competition_codes BEFORE looking at ucl_teams is what makes this
     correct across leagues, rather than relying on ucl_teams being NULL only for
     that reason.
+
+    CL team-pool matching is "either team," not "both teams": when `ucl_teams`
+    is a non-empty set, a fixture is in scope if AT LEAST ONE of
+    `fixture.home_team`/`fixture.away_team` is in the pool — the opponent need
+    not be selected. E.g. with `ucl_teams={"A", "B"}`, both "A vs C" and "A vs B"
+    are in scope; only a fixture with neither side in the pool (e.g. "C vs D")
+    is excluded.
     """
     code = match_competition_code(fixture.competition)
 
@@ -98,6 +105,6 @@ def fixture_in_league_scope(
     if code == "CL":
         if ucl_teams is None:
             return True
-        return fixture.home_team in ucl_teams and fixture.away_team in ucl_teams
+        return fixture.home_team in ucl_teams or fixture.away_team in ucl_teams
 
     return True

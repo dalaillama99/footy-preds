@@ -318,7 +318,7 @@ export default function Home() {
               <span className="text-2xl">🌍</span>
               <div>
                 <p className="font-semibold text-gray-900 dark:text-white">Champions League team pools</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">If a league includes the Champions League, its creator also picks a specific pool of CL teams for that league. Only Champions League games between two teams that are both in that pool are shown, predicted, or counted for that league — a CL game where even one side isn't in the pool doesn't appear at all for that league's members.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">If a league includes the Champions League, its creator also picks a specific pool of CL teams for that league. Any Champions League game involving at least one team from that pool is shown, predicted, or counted for that league — even if the opponent isn't in the pool.</p>
               </div>
             </div>
           </div>
