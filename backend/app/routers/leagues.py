@@ -10,11 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user, get_effective_is_admin
 from app.database import get_db
-from app.models import BracketPrediction, Fixture, League, LeagueMember, Prediction, User
+from app.models import (
+    BracketPrediction, Fixture, League, LeagueMember, PLTablePrediction, Prediction,
+    UclWinnerPrediction, User,
+)
 from app.schemas import (
     BracketPredictionOut, BracketTeam, FixturePredictionsOut, LeagueCreate, LeagueJoin,
-    LeagueOut, LeagueSettingsUpdate, LeaderboardEntry, LeagueMemberOut,
-    MemberPredictionOut, MemberSemiPredictionOut,
+    LeagueOut, LeagueSettingsUpdate, LeagueStandingsPredictionsOut, LeaderboardEntry,
+    LeagueMemberOut, MemberPLTablePredictionOut, MemberPredictionOut,
+    MemberSemiPredictionOut, MemberUclPredictionOut,
 )
 from app.services.football_api import COMPETITIONS
 from app.services.league_scope import fixture_in_league_scope, parse_competitions, parse_ucl_teams
@@ -760,6 +764,89 @@ async def league_bracket_semis(
                 semi2_b=_team(b.semi2_b),
             ))
     return rows
+
+
+@router.get("/{league_id}/standings-predictions", response_model=LeagueStandingsPredictionsOut)
+async def league_standings_predictions(
+    league_id: str,
+    user: User = Depends(get_current_user),
+    effective_is_admin: bool = Depends(get_effective_is_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Every league member's PL top-5/relegation table prediction and UCL winner pick.
+    These are global, one-shot, per-user bonus predictions (not scoped by the league's
+    own competitions/ucl_teams selection), shown unconditionally to every member."""
+    membership = await db.execute(
+        select(LeagueMember).where(LeagueMember.user_id == user.id, LeagueMember.league_id == league_id)
+    )
+    if not membership.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Not a member of this league")
+
+    members_result = await db.execute(
+        select(LeagueMember)
+        .where(LeagueMember.league_id == league_id)
+        .options(selectinload(LeagueMember.user))
+        .order_by(LeagueMember.joined_at)
+    )
+    members = members_result.scalars().all()
+    member_ids = [m.user_id for m in members]
+
+    pl_result = await db.execute(
+        select(PLTablePrediction).where(PLTablePrediction.user_id.in_(member_ids))
+    )
+    pl_map = {p.user_id: p for p in pl_result.scalars()}
+
+    ucl_result = await db.execute(
+        select(UclWinnerPrediction).where(UclWinnerPrediction.user_id.in_(member_ids))
+    )
+    ucl_map = {u.user_id: u for u in ucl_result.scalars()}
+
+    pl_table = []
+    ucl = []
+    for m in members:
+        real_name = m.user.username if effective_is_admin else None
+        pl_pred = pl_map.get(m.user_id)
+        if pl_pred is None:
+            pl_table.append(MemberPLTablePredictionOut(
+                user_id=m.user_id,
+                username=_display_name(m.user),
+                has_prediction=False,
+                real_name=real_name,
+            ))
+        else:
+            pl_table.append(MemberPLTablePredictionOut(
+                user_id=m.user_id,
+                username=_display_name(m.user),
+                has_prediction=True,
+                real_name=real_name,
+                pos1=pl_pred.pos1,
+                pos2=pl_pred.pos2,
+                pos3=pl_pred.pos3,
+                pos4=pl_pred.pos4,
+                pos5=pl_pred.pos5,
+                rel18=pl_pred.rel18,
+                rel19=pl_pred.rel19,
+                rel20=pl_pred.rel20,
+            ))
+
+        ucl_pred = ucl_map.get(m.user_id)
+        if ucl_pred is None:
+            ucl.append(MemberUclPredictionOut(
+                user_id=m.user_id,
+                username=_display_name(m.user),
+                has_prediction=False,
+                real_name=real_name,
+            ))
+        else:
+            ucl.append(MemberUclPredictionOut(
+                user_id=m.user_id,
+                username=_display_name(m.user),
+                has_prediction=True,
+                real_name=real_name,
+                predicted_winner=ucl_pred.predicted_winner,
+            ))
+
+    return LeagueStandingsPredictionsOut(pl_table=pl_table, ucl=ucl)
 
 
 @router.get("/{league_id}/bracket/{target_user_id}", response_model=BracketPredictionOut)

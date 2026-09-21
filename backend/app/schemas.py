@@ -255,6 +255,34 @@ class MemberSemiPredictionOut(BaseModel):
     semi2_b: Optional[BracketTeam] = None
 
 
+class MemberPLTablePredictionOut(BaseModel):
+    user_id: str
+    username: str
+    has_prediction: bool
+    real_name: Optional[str] = None
+    pos1: Optional[str] = None
+    pos2: Optional[str] = None
+    pos3: Optional[str] = None
+    pos4: Optional[str] = None
+    pos5: Optional[str] = None
+    rel18: Optional[str] = None
+    rel19: Optional[str] = None
+    rel20: Optional[str] = None
+
+
+class MemberUclPredictionOut(BaseModel):
+    user_id: str
+    username: str
+    has_prediction: bool
+    real_name: Optional[str] = None
+    predicted_winner: Optional[str] = None
+
+
+class LeagueStandingsPredictionsOut(BaseModel):
+    pl_table: list[MemberPLTablePredictionOut]
+    ucl: list[MemberUclPredictionOut]
+
+
 # ── League predictions (post-kickoff, visible to all members) ─────────────────
 
 class MemberPredictionOut(BaseModel):

@@ -4,6 +4,7 @@ import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import Leaderboard from '../components/Leaderboard'
 import CompetitionsPicker, { isValidCompetitionsSelection } from '../components/CompetitionsPicker'
+import StandingsPredictions from '../components/StandingsPredictions'
 
 function fmtKickoff(kickoff) {
   const d = new Date(kickoff + 'Z')
@@ -315,7 +316,10 @@ export default function LeagueDetail() {
 
 
       {tab === 'Predictions' && (
-        <PredictionsTab leagueId={id} />
+        <>
+          <StandingsPredictions leagueId={id} />
+          <PredictionsTab leagueId={id} />
+        </>
       )}
 
       {tab === 'Members' && (
