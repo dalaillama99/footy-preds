@@ -25,8 +25,11 @@ _CL_KEYWORD = COMPETITION_KEYWORDS["CL"]
 async def list_teams(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """The single, only CL-team-listing endpoint in this app — used both by the
     league-creation/edit CL-team-subset picker and by the UCL winner-pick popup.
-    Open to all authenticated users, not admin-gated."""
-    result = await db.execute(select(Fixture).where(Fixture.competition.contains(_CL_KEYWORD)))
+    Open to all authenticated users, not admin-gated. Teams from an unsynced
+    competition must not be offered — picking one would be unscoreable."""
+    result = await db.execute(
+        select(Fixture).where(Fixture.competition.contains(_CL_KEYWORD), Fixture.visible_clause())
+    )
     teams: dict[str, str | None] = {}
     for f in result.scalars():
         for name, crest in ((f.home_team, f.home_team_crest), (f.away_team, f.away_team_crest)):

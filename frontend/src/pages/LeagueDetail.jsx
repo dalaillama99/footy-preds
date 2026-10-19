@@ -135,7 +135,7 @@ function PredictionsTab({ leagueId }) {
   )
 }
 
-const TABS = ['Standings', 'Predictions', 'Members']
+const BASE_TABS = ['Standings', 'Predictions', 'Members']
 
 export default function LeagueDetail() {
   const { id } = useParams()
@@ -252,6 +252,11 @@ export default function LeagueDetail() {
   const isLeagueCreator = league.admin_id === user?.id
   const canManageLeague = isLeagueCreator || isAdmin
 
+  const tabs = canManageLeague ? [...BASE_TABS, 'Settings'] : BASE_TABS
+  // Guard against a stale selection (e.g. admin rights lost while viewing Settings)
+  // leaving the page with no rendered content.
+  const activeTab = tabs.includes(tab) ? tab : 'Standings'
+
   return (
     <div>
       <Link to="/leagues" className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 mb-4 inline-block">← Leagues</Link>
@@ -290,12 +295,12 @@ export default function LeagueDetail() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 border-b border-gray-200 dark:border-gray-700">
-        {TABS.map(t => (
+        {tabs.map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-2 text-sm font-medium transition border-b-2 -mb-px ${
-              tab === t
+              activeTab === t
                 ? 'border-green-600 text-green-700 dark:text-green-400'
                 : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
             }`}
@@ -306,7 +311,7 @@ export default function LeagueDetail() {
       </div>
 
       {/* Tab content */}
-      {tab === 'Standings' && (
+      {activeTab === 'Standings' && (
         <Leaderboard
           entries={board}
           leagueId={id}
@@ -315,14 +320,14 @@ export default function LeagueDetail() {
       )}
 
 
-      {tab === 'Predictions' && (
+      {activeTab === 'Predictions' && (
         <>
           <StandingsPredictions leagueId={id} />
           <PredictionsTab leagueId={id} />
         </>
       )}
 
-      {tab === 'Members' && (
+      {activeTab === 'Members' && (
         <div>
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden mb-8">
             {members.map((m, i) => (
@@ -373,49 +378,46 @@ export default function LeagueDetail() {
               You are the league admin — you cannot leave this league.
             </p>
           )}
+        </div>
+      )}
 
-          {canManageLeague && (
-            <>
-              {/* Admin: league settings */}
-              <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
-                <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">League Settings</h3>
-                <form onSubmit={saveSettings} className="space-y-4">
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <label className="text-xs text-gray-500 dark:text-gray-400">Count matches from:</label>
-                      <input
-                        type="datetime-local"
-                        value={leagueFromDate}
-                        onChange={e => setLeagueFromDate(e.target.value)}
-                        className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-500"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-                      Only fixtures after this date count toward standings.
-                    </p>
-                  </div>
-
-                  <CompetitionsPicker
-                    selectedCompetitions={settingsCompetitions}
-                    onCompetitionsChange={setSettingsCompetitions}
-                    selectedUclTeams={settingsUclTeams}
-                    onUclTeamsChange={setSettingsUclTeams}
-                  />
-
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="submit"
-                      disabled={settingsSaveDisabled}
-                      className="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50"
-                    >
-                      {savingSettings ? '…' : settingsSaved ? 'Saved!' : 'Save'}
-                    </button>
-                    {settingsError && <p className="text-red-500 text-xs">{settingsError}</p>}
-                  </div>
-                </form>
+      {activeTab === 'Settings' && (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
+          <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">League Settings</h3>
+          <form onSubmit={saveSettings} className="space-y-4">
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <label className="text-xs text-gray-500 dark:text-gray-400">Count matches from:</label>
+                <input
+                  type="datetime-local"
+                  value={leagueFromDate}
+                  onChange={e => setLeagueFromDate(e.target.value)}
+                  className="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
               </div>
-            </>
-          )}
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                Only fixtures after this date count toward standings.
+              </p>
+            </div>
+
+            <CompetitionsPicker
+              selectedCompetitions={settingsCompetitions}
+              onCompetitionsChange={setSettingsCompetitions}
+              selectedUclTeams={settingsUclTeams}
+              onUclTeamsChange={setSettingsUclTeams}
+            />
+
+            <div className="flex items-center gap-3">
+              <button
+                type="submit"
+                disabled={settingsSaveDisabled}
+                className="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+              >
+                {savingSettings ? '…' : settingsSaved ? 'Saved!' : 'Save'}
+              </button>
+              {settingsError && <p className="text-red-500 text-xs">{settingsError}</p>}
+            </div>
+          </form>
         </div>
       )}
     </div>

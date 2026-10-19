@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user, get_effective_is_admin
 from app.database import get_db
-from app.models import BracketPrediction, Prediction, User
+from app.models import BracketPrediction, Fixture, Prediction, User
 from app.schemas import LeaderboardEntry
 
 router = APIRouter(prefix="/leaderboard", tags=["leaderboard"])
@@ -16,11 +16,21 @@ async def global_leaderboard(
     effective_is_admin: bool = Depends(get_effective_is_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Global standings across all users and all scored fixtures."""
+    """Global standings across all users and all scored fixtures.
+
+    The Fixture join exists only to exclude unsynced fixtures. This query used to
+    sum Prediction rows with no join at all, which was correct only while unsync
+    hard-deleted them; now that the rows survive, their points would keep counting
+    toward a total for a competition the admin has hidden.
+    """
     users_result = await db.execute(select(User).order_by(User.username))
     entries = []
     for u in users_result.scalars():
-        preds_result = await db.execute(select(Prediction).where(Prediction.user_id == u.id))
+        preds_result = await db.execute(
+            select(Prediction)
+            .join(Fixture, Fixture.id == Prediction.fixture_id)
+            .where(Prediction.user_id == u.id, Fixture.visible_clause())
+        )
         preds = preds_result.scalars().all()
         if not preds:
             continue

@@ -77,7 +77,11 @@ def _display_name(user: User) -> str:
 async def _semis_finished(db: AsyncSession) -> bool:
     """Return True if both SEMI_FINALS fixtures exist with status FINISHED."""
     result = await db.execute(
-        select(Fixture).where(Fixture.stage == "SEMI_FINALS", Fixture.competition.contains("World Cup"))
+        select(Fixture).where(
+            Fixture.stage == "SEMI_FINALS",
+            Fixture.competition.contains("World Cup"),
+            Fixture.visible_clause(),
+        )
     )
     semi_fixtures = result.scalars().all()
     return len(semi_fixtures) >= 2 and all(f.status == "FINISHED" for f in semi_fixtures)
@@ -91,6 +95,7 @@ async def _semis_revealed(db: AsyncSession) -> bool:
             Fixture.competition.contains("World Cup"),
             Fixture.home_team != "TBD",
             Fixture.away_team != "TBD",
+            Fixture.visible_clause(),
         )
     )
     semis = result.scalars().all()
@@ -107,6 +112,7 @@ async def _wc_final_kickoff(db: AsyncSession) -> datetime | None:
             Fixture.stage == "FINAL",
             Fixture.competition.contains("World Cup"),
             Fixture.status == "FINISHED",
+            Fixture.visible_clause(),
         )
     )
     final_fixtures = result.scalars().all()
@@ -430,6 +436,7 @@ async def leaderboard(
     recent_fix_q = select(Fixture).where(
         Fixture.kickoff >= now_utc - timedelta(hours=8),
         Fixture.kickoff <= now_utc - timedelta(hours=2),
+        Fixture.visible_clause(),
     )
     if league.created_at is not None:
         recent_fix_q = recent_fix_q.where(Fixture.kickoff >= league.created_at)
@@ -452,7 +459,8 @@ async def leaderboard(
     entries = []
     for m in all_members:
         pred_q = select(Prediction).join(Fixture, Fixture.id == Prediction.fixture_id).where(
-            Prediction.user_id == m.user_id
+            Prediction.user_id == m.user_id,
+            Fixture.visible_clause(),
         ).options(selectinload(Prediction.fixture))
         if league.created_at is not None:
             pred_q = pred_q.where(Fixture.kickoff >= league.created_at)
@@ -504,6 +512,7 @@ async def leaderboard(
             pred_q = select(Prediction).join(Fixture, Fixture.id == Prediction.fixture_id).where(
                 Prediction.user_id == m.user_id,
                 Fixture.kickoff < day_start_utc,
+                Fixture.visible_clause(),
             ).options(selectinload(Prediction.fixture))
             if league.created_at is not None:
                 pred_q = pred_q.where(Fixture.kickoff >= league.created_at)
@@ -619,7 +628,7 @@ async def league_fixture_predictions(
     user_map = {m.user_id: _display_name(m.user) for m in members}
 
     now = datetime.utcnow()
-    conditions = [Fixture.kickoff <= now]
+    conditions = [Fixture.kickoff <= now, Fixture.visible_clause()]
     if league.created_at is not None:
         conditions.append(Fixture.kickoff >= league.created_at)
     fixtures_result = await db.execute(
@@ -726,7 +735,7 @@ async def league_bracket_semis(
 
     # Build a crest lookup from World Cup fixtures
     wc_fixtures = (await db.execute(
-        select(Fixture).where(Fixture.competition.contains("World Cup"))
+        select(Fixture).where(Fixture.competition.contains("World Cup"), Fixture.visible_clause())
     )).scalars().all()
     crest_map: dict[str, str | None] = {}
     for f in wc_fixtures:

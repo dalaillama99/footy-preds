@@ -35,6 +35,8 @@ async def submit_prediction(
     fixture = fixture_result.scalar_one_or_none()
     if not fixture:
         raise HTTPException(status_code=404, detail="Fixture not found")
+    if fixture.unsynced:
+        raise HTTPException(status_code=400, detail="This competition is no longer being tracked")
     if _is_locked(fixture):
         raise HTTPException(status_code=400, detail="Prediction deadline has passed (kickoff already started)")
 
@@ -71,9 +73,13 @@ async def submit_prediction(
 
 @router.get("", response_model=list[PredictionOut])
 async def my_predictions(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # Joined to Fixture purely to drop predictions on unsynced fixtures: the rows
+    # are preserved on disk and come back untouched when the competition is
+    # re-synced, they just aren't shown while it's hidden.
     result = await db.execute(
         select(Prediction)
-        .where(Prediction.user_id == user.id)
+        .join(Fixture, Fixture.id == Prediction.fixture_id)
+        .where(Prediction.user_id == user.id, Fixture.visible_clause())
         .options(selectinload(Prediction.fixture))
         .order_by(Prediction.submitted_at.desc())
     )

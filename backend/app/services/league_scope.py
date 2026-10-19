@@ -1,14 +1,24 @@
 """Shared logic for scoping fixtures/predictions to a league's chosen competitions
 and (for Champions League) chosen team subset.
 
-`Fixture.competition` is NOT reliably the exact `COMPETITIONS[code]` string — the
-live-score poller's fallback path (`fetch_live_matches` -> `_parse_match` with no
-`competition_override`) stores football-data.org's raw `competition.name` for
-fixtures discovered that way, and `upsert_fixtures` never rewrites `competition`
-on update once a row exists. `FixtureCreate.competition` is also free text an
-admin can type anything into. So competition matching here uses keyword
-substring matching (`Fixture.competition.contains(keyword)`), never exact
-equality — see COMPETITION_KEYWORDS below.
+`Fixture.competition` is NOT reliably the exact `COMPETITIONS[code]` string.
+Historically nothing ever corrected it: rows created by the live-score poller's
+fallback path (`fetch_live_matches` -> `_parse_match` with no
+`competition_override`) hold football-data.org's raw `competition.name` — e.g.
+"Primera Division" rather than "La Liga" — and `upsert_fixtures` never rewrote
+`competition` on update. That last part is no longer true: a deliberate
+`POST /fixtures/sync` now passes `normalize_competition=True`, which rewrites
+`competition` to the canonical `COMPETITIONS[code]` string on the update path,
+so a re-sync heals those legacy rows. Rows not yet re-synced can still hold a
+raw name, and `FixtureCreate.competition` is free text an admin can type
+anything into. So competition matching here uses keyword substring matching
+(`Fixture.competition.contains(keyword)`), never exact equality — see
+COMPETITION_KEYWORDS below.
+
+Unrecognized competition strings do NOT fail open uniformly: see
+`fixture_in_league_scope`, which fails open only for admin-created fixtures
+(`api_id is None`) and excludes API-sourced ones. That narrowing depends on the
+normalization above being in place.
 
 This module is imported by `app.routers.leagues`, `app.routers.fixtures`, and
 `app.routers.ucl` — for scoping fixtures/predictions to a league's chosen
@@ -24,8 +34,8 @@ anywhere else.
 # Maps every `COMPETITIONS` code (see app.services.football_api) to a short,
 # distinctive substring that appears in that competition's real name. Must
 # cover every key in COMPETITIONS — a partial mapping would silently defeat
-# scoping for the missing competitions (they'd fall into the fail-open branch
-# below and leak into every league unconditionally).
+# scoping for the missing competitions: they'd fall into the no-code branch
+# below and, being API-sourced, vanish from every league entirely.
 # Verified: all 8 keywords are mutually non-overlapping substrings of each other.
 COMPETITION_KEYWORDS: dict[str, str] = {
     "WC": "World Cup",
@@ -42,7 +52,8 @@ COMPETITION_KEYWORDS: dict[str, str] = {
 def match_competition_code(competition: str | None) -> str | None:
     """Return the COMPETITIONS code whose keyword appears in `competition`, or
     None if no known keyword matches (an unrecognized/free-text competition
-    name — callers should treat this as fail-open, not excluded)."""
+    name — see `fixture_in_league_scope` for how that case is resolved; it is
+    no longer a blanket fail-open)."""
     if not competition:
         return None
     for code, keyword in COMPETITION_KEYWORDS.items():
@@ -93,11 +104,16 @@ def fixture_in_league_scope(
     """
     code = match_competition_code(fixture.competition)
 
-    # Fail-open: a competition string matching none of our known keywords (e.g.
-    # an admin-typed arbitrary name) is treated as in scope for every league —
-    # excluding it would only ever break something that used to work.
+    # Narrowed fail-open. A competition string matching none of our keywords is
+    # in scope for every league ONLY if the fixture was hand-created by an admin
+    # (`api_id is None` — POST /fixtures takes a free-text competition, so there
+    # is no code to scope it by and excluding it would break a working feature).
+    # An API-sourced fixture whose competition matches no keyword is out of scope
+    # for every league: the old blanket fail-open let one league's Champions
+    # League pool be bypassed entirely by any unrecognized string. Uses getattr
+    # because this function takes fixture-*like* objects, not only Fixture rows.
     if code is None:
-        return True
+        return getattr(fixture, "api_id", None) is None
 
     if code not in competition_codes:
         return False

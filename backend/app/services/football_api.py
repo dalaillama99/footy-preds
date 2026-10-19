@@ -148,7 +148,12 @@ async def fetch_live_matches() -> list[dict]:
     return [_parse_match(m) for m in resp.json().get("matches", [])]
 
 
-async def upsert_fixtures(db: AsyncSession, matches: list[dict], allow_create: bool = True) -> dict:
+async def upsert_fixtures(
+    db: AsyncSession,
+    matches: list[dict],
+    allow_create: bool = True,
+    normalize_competition: bool = False,
+) -> dict:
     """
     Upsert a list of parsed match dicts into the DB.
     - Creates new fixtures for unknown api_ids (unless allow_create=False).
@@ -156,14 +161,29 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict], allow_create: b
     - Auto-calculates prediction points when a match transitions to FINISHED.
 
     allow_create=False is used by the background live-score poller so it can
-    never resurrect a fixture an admin has deliberately unsynced (deleted) —
-    it only ever updates fixtures that already exist in the DB. Deliberate
+    never resurrect a fixture an admin has deliberately unsynced. Unsync is a
+    soft delete now (`Fixture.unsynced`), so the row still exists and the
+    "unknown api_id" guard alone no longer catches it — an unsynced fixture is
+    therefore also skipped outright when allow_create=False. Deliberate
     admin-triggered syncs (POST /fixtures/sync, POST /fixtures/{id}/refresh)
-    keep the default allow_create=True and can still create rows.
+    keep the default allow_create=True and can still create rows and touch
+    unsynced ones (their callers then clear the flag).
 
-    Returns a summary dict.
+    normalize_competition=True overwrites `fixture.competition` on the update
+    path with the canonical name this sync was driven by. Only a
+    `fetch_competition_matches`-driven sync may pass it, because only there is
+    `m["competition"]` known to be the canonical `COMPETITIONS[code]` string
+    rather than football-data.org's raw `competition.name` (which differs — PD
+    comes back as "Primera Division", not "La Liga"). The live poller and
+    /refresh leave it False, since their parsed dicts carry the raw name and
+    would corrupt a correct row. Never infer this flag from the data.
+
+    Returns a summary dict. `upserted_api_ids` lists every api_id actually
+    created or updated — POST /fixtures/sync uses it to decide which unsynced
+    fixtures to restore, and pops it before returning the summary to the client.
     """
     created = updated = points_recalculated = skipped = skipped_not_synced = 0
+    upserted_api_ids: list[int] = []
 
     for m in matches:
         # Skip fixtures whose teams aren't known yet — e.g. World Cup knockout slots
@@ -182,6 +202,13 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict], allow_create: b
             # admin unsynced this competition and this match is no longer meant
             # to exist in our DB. Skip entirely: no row, no prediction/bracket
             # rescoring (nothing to recalculate for a fixture that doesn't exist).
+            skipped_not_synced += 1
+            continue
+
+        if fixture is not None and fixture.unsynced and not allow_create:
+            # The row survives an unsync (soft delete), so the guard above can't
+            # see it. The live poller must not update, score or otherwise revive
+            # an unsynced fixture — only a deliberate admin sync may.
             skipped_not_synced += 1
             continue
 
@@ -211,6 +238,8 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict], allow_create: b
             pen_changed = (fixture.home_penalties != m.get("home_penalties") or fixture.away_penalties != m.get("away_penalties"))
             fixture.home_penalties = m.get("home_penalties")
             fixture.away_penalties = m.get("away_penalties")
+            if normalize_competition:
+                fixture.competition = m["competition"]
 
             just_finished = (prev_status != "FINISHED") and (m["status"] == "FINISHED")
             score_changed = (prev_home != m["home_score"] or prev_away != m["away_score"])
@@ -220,6 +249,7 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict], allow_create: b
             if m.get("stage") in ("SEMI_FINALS", "FINAL") and (just_finished or teams_changed):
                 await _rescore_brackets(db)
             updated += 1
+            upserted_api_ids.append(m["api_id"])
         else:
             fixture = Fixture(
                 api_id=m["api_id"],
@@ -248,6 +278,7 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict], allow_create: b
             if m.get("stage") in ("SEMI_FINALS", "FINAL"):
                 await _rescore_brackets(db)
             created += 1
+            upserted_api_ids.append(m["api_id"])
 
     await db.commit()
     return {
@@ -257,6 +288,7 @@ async def upsert_fixtures(db: AsyncSession, matches: list[dict], allow_create: b
         "skipped": skipped,
         "skipped_not_synced": skipped_not_synced,
         "total": len(matches),
+        "upserted_api_ids": upserted_api_ids,
     }
 
 
@@ -295,7 +327,9 @@ async def fetch_match_lineups(api_id: int) -> dict:
 
 async def _rescore_brackets(db: AsyncSession) -> int:
     """Rescore all bracket predictions from current WC fixture state. Returns count updated."""
-    wc = await db.execute(select(Fixture).where(Fixture.competition.contains("World Cup")))
+    wc = await db.execute(
+        select(Fixture).where(Fixture.competition.contains("World Cup"), Fixture.visible_clause())
+    )
     fixtures = wc.scalars().all()
 
     actual_semis = {

@@ -13,7 +13,9 @@ router = APIRouter(prefix="/bracket", tags=["bracket"])
 
 @router.get("/teams", response_model=list[BracketTeam])
 async def list_teams(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Fixture).where(Fixture.competition.contains("World Cup")))
+    result = await db.execute(
+        select(Fixture).where(Fixture.competition.contains("World Cup"), Fixture.visible_clause())
+    )
     teams: dict[str, str | None] = {}
     for f in result.scalars():
         for name, crest in ((f.home_team, f.home_team_crest), (f.away_team, f.away_team_crest)):

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import api from '../api/client'
 
 export default function AdminSyncFixtures({ onSyncDone }) {
@@ -19,12 +19,20 @@ export default function AdminSyncFixtures({ onSyncDone }) {
     })
   }, [])
 
-  useEffect(() => {
-    api.get('/fixtures/synced-competitions').then(r => {
-      setSyncedCompetitions(r.data || [])
-      if (r.data && r.data.length > 0) setUnsyncSelected(r.data[0])
-    }).catch(() => {})
+  // An unsync drops the competition from this list, so it has to be refetched
+  // after every sync/unsync — a stale selection would silently target nothing.
+  const loadSyncedCompetitions = useCallback(async () => {
+    try {
+      const { data } = await api.get('/fixtures/synced-competitions')
+      const names = data || []
+      setSyncedCompetitions(names)
+      setUnsyncSelected(prev => (names.includes(prev) ? prev : (names[0] || '')))
+    } catch {
+      // Non-fatal: the unsync control just stays hidden.
+    }
   }, [])
+
+  useEffect(() => { loadSyncedCompetitions() }, [loadSyncedCompetitions])
 
   const sync = async () => {
     setSyncing(true)
@@ -33,6 +41,7 @@ export default function AdminSyncFixtures({ onSyncDone }) {
     try {
       const { data } = await api.post(`/fixtures/sync?competition=${selected}`)
       setResult(data)
+      await loadSyncedCompetitions()
       if (onSyncDone) onSyncDone()
     } catch (err) {
       setError(err.response?.data?.detail || 'Sync failed')
@@ -49,6 +58,7 @@ export default function AdminSyncFixtures({ onSyncDone }) {
       const { data } = await api.delete('/fixtures/competition', { params: { name: unsyncSelected } })
       setUnsyncResult(data)
       setConfirmUnsync(false)
+      await loadSyncedCompetitions()
       if (onSyncDone) onSyncDone()
     } catch (err) {
       setError(err.response?.data?.detail || 'Unsync failed')
@@ -104,14 +114,14 @@ export default function AdminSyncFixtures({ onSyncDone }) {
           ) : (
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-red-600 dark:text-red-400">
-                Delete all {unsyncSelected} fixtures + predictions?
+                Hide all {unsyncSelected} fixtures? Predictions are kept and come back when you re-sync.
               </span>
               <button
                 onClick={unsync}
                 disabled={unsyncing}
                 className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition disabled:opacity-50"
               >
-                {unsyncing ? 'Deleting…' : 'Confirm delete'}
+                {unsyncing ? 'Unsyncing…' : 'Confirm unsync'}
               </button>
               <button
                 onClick={() => setConfirmUnsync(false)}
@@ -137,7 +147,7 @@ export default function AdminSyncFixtures({ onSyncDone }) {
 
       {unsyncResult && (
         <p className="text-red-700 dark:text-red-400 text-xs mt-3">
-          Removed {unsyncResult.deleted_fixtures} fixtures and {unsyncResult.deleted_predictions} predictions.
+          Unsynced {unsyncResult.unsynced_fixtures} fixtures — {unsyncResult.preserved_predictions} predictions kept, re-sync to restore.
         </p>
       )}
 

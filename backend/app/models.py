@@ -2,7 +2,7 @@ import uuid
 import secrets
 import string
 from datetime import datetime
-from sqlalchemy import String, Integer, Float, Boolean, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import String, Integer, Float, Boolean, DateTime, ForeignKey, UniqueConstraint, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -88,9 +88,33 @@ class Fixture(Base):
     home_penalties: Mapped[int | None] = mapped_column(Integer, nullable=True)
     away_penalties: Mapped[int | None] = mapped_column(Integer, nullable=True)
     lineups_json: Mapped[str | None] = mapped_column(String, nullable=True)  # cached JSON from API
+    # Soft-delete flag set by DELETE /fixtures/competition ("unsync"). The row and
+    # every Prediction FK/points value attached to it survive, so a later re-sync of
+    # the same competition restores the predictions and their scores untouched. The
+    # old behaviour hard-deleted both and destroyed real user data irrecoverably.
+    # server_default is `false()`, not the string "false": a plain string renders as
+    # the quoted literal DEFAULT 'false' on BOTH dialects, which SQLite stores as the
+    # 4-character text "false" — never equal to 0, so visible_clause() would hide
+    # every row created by a raw INSERT. `false()` renders DEFAULT 0 on SQLite and
+    # DEFAULT false on Postgres.
+    unsynced: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     predictions: Mapped[list["Prediction"]] = relationship(back_populates="fixture")
+
+    @classmethod
+    def visible_clause(cls):
+        """The "not soft-deleted" filter, for `.where(...)` and join conditions.
+
+        Every read path that surfaces fixtures, predictions or points to a user
+        must compose this in. `fixture_in_league_scope` is deliberately NOT the
+        choke point for it — that function is called at only a handful of the
+        ~25 `select(Fixture)` sites, so a missed site would leak unsynced data
+        back into a leaderboard. Keep this in the SQL at each site instead.
+        """
+        return cls.unsynced.is_(False)
 
 
 class Prediction(Base):

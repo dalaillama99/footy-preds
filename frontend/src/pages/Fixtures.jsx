@@ -56,12 +56,35 @@ export default function Fixtures() {
   const [pastOpen, setPastOpen] = useState(false)
   const [futureOpen, setFutureOpen] = useState(false)
   const [competitionFilter, setCompetitionFilter] = useState('All')
+  const [leagues, setLeagues] = useState([])
+  const [leagueFilter, setLeagueFilter] = useState('all')
+  const [scopeReady, setScopeReady] = useState(false)
   const pollerRef = useRef(null)
+
+  // Resolve the league scope before the first fixture fetch, so a user with a
+  // single league doesn't briefly see the unscoped union of every league.
+  useEffect(() => {
+    let cancelled = false
+    api.get('/leagues')
+      .then(r => {
+        if (cancelled) return
+        const active = (r.data || []).filter(l => !l.archived)
+        setLeagues(active)
+        if (active.length === 1) setLeagueFilter(active[0].id)
+        setScopeReady(true)
+      })
+      .catch(() => { if (!cancelled) setScopeReady(true) })
+    return () => { cancelled = true }
+  }, [])
+
+  // Narrowing to one league can drop the selected competition from the pill
+  // row, which then hides itself — leaving no control to recover with.
+  useEffect(() => { setCompetitionFilter('All') }, [leagueFilter])
 
   const fetchAll = useCallback(async () => {
     try {
       const [fx, preds] = await Promise.all([
-        api.get('/fixtures'),
+        api.get('/fixtures', leagueFilter === 'all' ? undefined : { params: { league_id: leagueFilter } }),
         api.get('/predictions'),
       ])
       setFixtures(fx.data)
@@ -75,14 +98,15 @@ export default function Fixtures() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [leagueFilter])
 
-  useEffect(() => { fetchAll() }, [fetchAll])
+  useEffect(() => { if (scopeReady) fetchAll() }, [scopeReady, fetchAll])
 
   useEffect(() => {
+    if (!scopeReady) return
     pollerRef.current = setInterval(fetchAll, 15_000)
     return () => clearInterval(pollerRef.current)
-  }, [fetchAll])
+  }, [scopeReady, fetchAll])
 
   const onPredictionSaved = p => setPredictions(prev => ({ ...prev, [p.fixture_id]: p }))
   const onFixtureAdded = f => {
@@ -143,7 +167,16 @@ export default function Fixtures() {
     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-5">
       <p className="text-red-700 dark:text-red-400 font-medium text-sm mb-1">Failed to load fixtures</p>
       <p className="text-red-500 dark:text-red-400 text-xs">{fetchError}</p>
-      <button onClick={fetchAll} className="mt-3 text-xs text-red-600 dark:text-red-400 underline">Try again</button>
+      <div className="flex items-center gap-4 mt-3">
+        <button onClick={fetchAll} className="text-xs text-red-600 dark:text-red-400 underline">Try again</button>
+        {/* The selector is unreachable while this block replaces the page, so a
+            failing league scope would otherwise be a dead end. */}
+        {leagueFilter !== 'all' && (
+          <button onClick={() => setLeagueFilter('all')} className="text-xs text-red-600 dark:text-red-400 underline">
+            Show all my leagues
+          </button>
+        )}
+      </div>
     </div>
   )
 
@@ -170,6 +203,27 @@ export default function Fixtures() {
 
       {showSync && <AdminSyncFixtures onSyncDone={onSyncDone} />}
       {showAdd && <div className="mb-6"><AdminAddFixture onAdded={onFixtureAdded} /></div>}
+
+      {/* League scope — the unscoped view is the union of every league the user
+          is in, which makes any single league's team pool look like a no-op. */}
+      {leagues.length > 1 && (
+        <div className="flex items-center gap-2 mb-4">
+          <label htmlFor="league-scope" className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Showing
+          </label>
+          <select
+            id="league-scope"
+            value={leagueFilter}
+            onChange={e => setLeagueFilter(e.target.value)}
+            className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            <option value="all">All my leagues</option>
+            {leagues.map(l => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Competition filter tabs */}
       {competitions.length > 2 && (

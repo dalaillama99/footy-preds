@@ -28,7 +28,9 @@ def _require_admin(user: User) -> None:
 
 @router.get("/teams", response_model=list[PLTeam])
 async def list_teams(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Fixture).where(Fixture.competition == "Premier League"))
+    result = await db.execute(
+        select(Fixture).where(Fixture.competition == "Premier League", Fixture.visible_clause())
+    )
     teams: dict[str, str | None] = {}
     for f in result.scalars():
         for name, crest in ((f.home_team, f.home_team_crest), (f.away_team, f.away_team_crest)):
@@ -108,7 +110,9 @@ async def set_actual_standings(
     if len(set(names)) != 8:
         raise HTTPException(status_code=400, detail="Each team can only appear once")
 
-    teams_result = await db.execute(select(Fixture).where(Fixture.competition == "Premier League"))
+    teams_result = await db.execute(
+        select(Fixture).where(Fixture.competition == "Premier League", Fixture.visible_clause())
+    )
     valid_names: set[str] = set()
     for f in teams_result.scalars():
         if f.home_team:

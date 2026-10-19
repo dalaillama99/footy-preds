@@ -38,10 +38,16 @@ app.add_middleware(
 
 
 async def _has_active_matches() -> bool:
-    """Check DB for any LIVE matches or SCHEDULED matches whose kickoff has passed."""
+    """Check DB for any LIVE matches or SCHEDULED matches whose kickoff has passed.
+
+    Unsynced (soft-deleted) fixtures are excluded: the row survives an unsync, so a
+    kicked-off unsynced fixture would otherwise pin the poller in 12s active mode
+    forever — the upsert skips it, so it never reaches FINISHED and never clears.
+    """
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(Fixture).where(
+                Fixture.visible_clause(),
                 (Fixture.status == "LIVE") |
                 ((Fixture.status == "SCHEDULED") & (Fixture.kickoff <= datetime.utcnow()))
             )
@@ -55,10 +61,15 @@ async def _get_fixtures_due_result_check() -> list:
     that is due for an individual poll. With _RESULT_INITIAL_DELAY_HOURS=0 checks
     begin at kickoff; each fixture is then re-polled every _RESULT_RETRY_INTERVAL
     (~2 min) until it reaches FINISHED/POSTPONED.
+
+    Unsynced (soft-deleted) fixtures are excluded — polling one burns the
+    football-data.org 10 req/min budget on a match that can never be updated
+    (the upsert skips it) and so would be re-polled every cycle indefinitely.
     """
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(Fixture).where(
+                Fixture.visible_clause(),
                 Fixture.status.in_(["SCHEDULED", "LIVE"]),
                 Fixture.api_id.isnot(None),
             )
