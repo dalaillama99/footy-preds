@@ -1,6 +1,10 @@
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
-sqlalchemy>=2.0.23
+# [asyncio] pulls in greenlet, which sqlalchemy.ext.asyncio needs at import time.
+# SQLAlchemy 2.1 dropped greenlet from the default install, so an unpinned
+# `sqlalchemy>=2.0.23` silently resolved to 2.1 on a rebuild and crash-looped the
+# app on boot. Capped below 2.1 until that upgrade is done deliberately.
+sqlalchemy[asyncio]>=2.0.23,<2.1
 aiosqlite>=0.19.0
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
